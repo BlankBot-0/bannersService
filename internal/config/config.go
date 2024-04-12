@@ -8,9 +8,9 @@ import (
 )
 
 type Config struct {
-	Env          string `yaml:"env" env-default:"local"`
-	DBConnection string `yaml:"db_connection"`
-	HTTPServer   `yaml:"http_server"`
+	Env        string `yaml:"env" env-default:"local"`
+	Dsn        string `yaml:"dsn"`
+	HTTPServer `yaml:"http_server"`
 }
 
 type HTTPServer struct {

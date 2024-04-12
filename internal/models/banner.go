@@ -1,10 +1,8 @@
 package models
 
-import "time"
-
 type Banner struct {
-	FeatureID FeatureID
-	TagID     TagID
-	PatchDate time.Time
+	FeatureID int32
+	TagIDs    []int32
 	Contents  BannerContents
+	IsActive  bool
 }

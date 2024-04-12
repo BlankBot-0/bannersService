@@ -13,26 +13,25 @@ import (
 
 const addBannerTags = `-- name: AddBannerTags :exec
 INSERT INTO banners_tag (banner_id, tag_id)
-VALUES ($1, UNNEST($2))
+VALUES ($1::INT, UNNEST($2::INT[]))
 `
 
 type AddBannerTagsParams struct {
-	BannerID pgtype.Int4
-	Unnest   interface{}
+	BannerID int32
+	TagIds   []int32
 }
 
 func (q *Queries) AddBannerTags(ctx context.Context, arg AddBannerTagsParams) error {
-	_, err := q.db.Exec(ctx, addBannerTags, arg.BannerID, arg.Unnest)
+	_, err := q.db.Exec(ctx, addBannerTags, arg.BannerID, arg.TagIds)
 	return err
 }
 
 const checkActiveUserBanner = `-- name: CheckActiveUserBanner :one
 SELECT banners.is_active
 FROM banners
-    JOIN banners_tag
-        ON banners.id = banners_tag.banner_id
-WHERE
-    banners_tag.tag_id = $1 AND banners.feature_id = $2
+         JOIN banners_tag ON banners.id = banners_tag.banner_id
+WHERE banners_tag.tag_id = $1
+  AND banners.feature_id = $2
 `
 
 type CheckActiveUserBannerParams struct {
@@ -40,21 +39,40 @@ type CheckActiveUserBannerParams struct {
 	FeatureID int32
 }
 
-func (q *Queries) CheckActiveUserBanner(ctx context.Context, arg CheckActiveUserBannerParams) (pgtype.Bool, error) {
+func (q *Queries) CheckActiveUserBanner(ctx context.Context, arg CheckActiveUserBannerParams) (bool, error) {
 	row := q.db.QueryRow(ctx, checkActiveUserBanner, arg.TagID, arg.FeatureID)
-	var is_active pgtype.Bool
+	var is_active bool
 	err := row.Scan(&is_active)
 	return is_active, err
 }
 
 const checkBannerId = `-- name: CheckBannerId :one
-
 SELECT EXISTS(SELECT id FROM banners WHERE id = $1)
 `
 
-// should default to 1 if $4 is NULL
-func (q *Queries) CheckBannerId(ctx context.Context, id int32) (bool, error) {
+func (q *Queries) CheckBannerId(ctx context.Context, id int64) (bool, error) {
 	row := q.db.QueryRow(ctx, checkBannerId, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const checkExistsBanner = `-- name: CheckExistsBanner :one
+SELECT EXISTS(
+    SELECT id, feature_id, is_active, created_at, banner_id, tag_id
+    FROM banners
+    JOIN banners_tag ON banners.id = banners_tag.banner_id
+    WHERE banners.feature_id = $1 AND banners_tag.tag_id = any($2::INT[])
+)
+`
+
+type CheckExistsBannerParams struct {
+	FeatureID int32
+	TagIds    []int32
+}
+
+func (q *Queries) CheckExistsBanner(ctx context.Context, arg CheckExistsBannerParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkExistsBanner, arg.FeatureID, arg.TagIds)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -68,33 +86,34 @@ RETURNING id
 
 type CreateBannerParams struct {
 	FeatureID int32
-	IsActive  pgtype.Bool
+	IsActive  bool
 }
 
-func (q *Queries) CreateBanner(ctx context.Context, arg CreateBannerParams) (int32, error) {
+func (q *Queries) CreateBanner(ctx context.Context, arg CreateBannerParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createBanner, arg.FeatureID, arg.IsActive)
-	var id int32
+	var id int64
 	err := row.Scan(&id)
 	return id, err
 }
 
 const createBannerInfo = `-- name: CreateBannerInfo :exec
 INSERT INTO banners_info (banner_id, updated_at, contents)
-VALUES ($1, NOW(), $2)
+VALUES ($2::INT, NOW(), $1)
 `
 
 type CreateBannerInfoParams struct {
-	BannerID pgtype.Int4
 	Contents []byte
+	BannerID int32
 }
 
 func (q *Queries) CreateBannerInfo(ctx context.Context, arg CreateBannerInfoParams) error {
-	_, err := q.db.Exec(ctx, createBannerInfo, arg.BannerID, arg.Contents)
+	_, err := q.db.Exec(ctx, createBannerInfo, arg.Contents, arg.BannerID)
 	return err
 }
 
 const deleteBannerInfo = `-- name: DeleteBannerInfo :exec
-DELETE FROM banners_info
+DELETE
+FROM banners_info
 WHERE banner_id = $1
 `
 
@@ -104,7 +123,8 @@ func (q *Queries) DeleteBannerInfo(ctx context.Context, bannerID pgtype.Int4) er
 }
 
 const deleteBannerTags = `-- name: DeleteBannerTags :exec
-DELETE FROM banners_tag
+DELETE
+FROM banners_tag
 WHERE banner_id = $1
 `
 
@@ -116,15 +136,12 @@ func (q *Queries) DeleteBannerTags(ctx context.Context, bannerID pgtype.Int4) er
 const getUserBanner = `-- name: GetUserBanner :one
 SELECT banners_info.contents
 FROM banners
-    JOIN banners_tag
-        ON banners.id = banners_tag.banner_id
-    JOIN banners_info
-        ON banners_tag.banner_id = banners_info.banner_id
-WHERE
-    banners_tag.tag_id = $1 AND banners.feature_id = $2
-ORDER BY
-    banners_info.updated_at
-        DESC LIMIT 1
+         JOIN banners_tag ON banners.id = banners_tag.banner_id
+         JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
+WHERE banners_tag.tag_id = $1
+  AND banners.feature_id = $2
+ORDER BY banners_info.updated_at DESC
+LIMIT 1
 `
 
 type GetUserBannerParams struct {
@@ -140,20 +157,17 @@ func (q *Queries) GetUserBanner(ctx context.Context, arg GetUserBannerParams) ([
 }
 
 const listBannerVersions = `-- name: ListBannerVersions :many
-
-SELECT banners.id, banners.feature_id,
-       banners_info.contents, banners.is_active,
-       banners.created_at, banners_info.updated_at
+SELECT banners.id,
+       banners.feature_id,
+       banners_info.contents,
+       banners.is_active,
+       banners.created_at,
+       banners_info.updated_at
 FROM banners
-     JOIN banners_tag
-          ON banners.id = banners_tag.banner_id
-     JOIN banners_info
-          ON banners_tab.banner_id = banners_info.banner_id
-WHERE
-    banners_tag.tag_id = $1 OR $1 IS NULL
-    AND banners.feature_id = $2 OR $2 IS NULL
-    LIMIT $3   -- should default to inf if $4 is NULL
-OFFSET $4
+         JOIN banners_tag ON banners.id = banners_tag.banner_id
+         JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
+WHERE banners_tag.tag_id = $1 AND banners.feature_id = $2
+LIMIT $3 OFFSET $4
 `
 
 type ListBannerVersionsParams struct {
@@ -164,15 +178,14 @@ type ListBannerVersionsParams struct {
 }
 
 type ListBannerVersionsRow struct {
-	ID        int32
+	ID        int64
 	FeatureID int32
 	Contents  []byte
-	IsActive  pgtype.Bool
+	IsActive  bool
 	CreatedAt pgtype.Timestamp
 	UpdatedAt pgtype.Timestamp
 }
 
-// should default to 1 if $4 is NULL
 func (q *Queries) ListBannerVersions(ctx context.Context, arg ListBannerVersionsParams) ([]ListBannerVersionsRow, error) {
 	rows, err := q.db.Query(ctx, listBannerVersions,
 		arg.TagID,
@@ -206,31 +219,24 @@ func (q *Queries) ListBannerVersions(ctx context.Context, arg ListBannerVersions
 }
 
 const listBanners = `-- name: ListBanners :many
-SELECT banners.id, banners.feature_id,
-       banners_info.contents, banners.is_active,
-       banners.created_at, banners_info.updated_at,
-       tags_arr.tags,
-       RANK() OVER (PARTITION BY banners_tag.tag_id, banners.feature_id
-                    ORDER BY banners_info.updated_at DESC) rn
+SELECT banners.id,
+       banners.feature_id,
+       bi.contents,
+       banners.is_active,
+       banners.created_at,
+       bi.updated_at,
+       array_agg(banners_tag.tag_id) as tags
 FROM banners
-    JOIN banners_tag
-        ON banners.id = banners_tag.banner_id
-    JOIN banners_info
-        ON banners_tab.banner_id = banners_info.banner_id
-    JOIN (
-        SELECT banners.id, array_agg(banners_tag.tag_id) as tags
-        FROM banners
-        JOIN banners_tag
-            ON banner.id = banners_tag.banner_id
-        GROUP BY banners.id
-    ) tags_arr
-        ON banners.id = tags_arr.id
-WHERE
-    banners_tag.tag_id = $1 OR $1 IS NULL
-    AND banners.feature_id = $2 OR $2 IS NULL
-    AND rn = 1
-LIMIT $3   -- should default to inf if $4 is NULL
-OFFSET $4
+         JOIN banners_tag ON banners.id = banners_tag.banner_id
+         JOIN (select banner_id, contents, updated_at
+               from banners_info
+               order by updated_at desc
+               limit 1) as bi ON banners_tag.banner_id = bi.banner_id
+WHERE banners_tag.tag_id = $1
+   OR $1 IS NULL AND banners.feature_id = $2
+   OR $2 IS NULL AND tag_id = $1
+group by 1, 2, 3, 4, 5, 6
+LIMIT $3 OFFSET $4
 `
 
 type ListBannersParams struct {
@@ -241,14 +247,13 @@ type ListBannersParams struct {
 }
 
 type ListBannersRow struct {
-	ID        int32
+	ID        int64
 	FeatureID int32
 	Contents  []byte
-	IsActive  pgtype.Bool
+	IsActive  bool
 	CreatedAt pgtype.Timestamp
 	UpdatedAt pgtype.Timestamp
 	Tags      interface{}
-	Rn        int64
 }
 
 func (q *Queries) ListBanners(ctx context.Context, arg ListBannersParams) ([]ListBannersRow, error) {
@@ -273,7 +278,6 @@ func (q *Queries) ListBanners(ctx context.Context, arg ListBannersParams) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Tags,
-			&i.Rn,
 		); err != nil {
 			return nil, err
 		}
@@ -307,7 +311,7 @@ WHERE id = $1
 `
 
 type UpdateBannerFeatureParams struct {
-	ID        int32
+	ID        int64
 	FeatureID int32
 }
 
@@ -323,8 +327,8 @@ WHERE id = $1
 `
 
 type UpdateBannerIsActiveParams struct {
-	ID       int32
-	IsActive pgtype.Bool
+	ID       int64
+	IsActive bool
 }
 
 func (q *Queries) UpdateBannerIsActive(ctx context.Context, arg UpdateBannerIsActiveParams) error {

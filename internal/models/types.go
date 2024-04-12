@@ -1,8 +1,5 @@
 package models
 
-type FeatureID int64
-type TagID int64
-
 type Token string
 type BannerContents []byte
 

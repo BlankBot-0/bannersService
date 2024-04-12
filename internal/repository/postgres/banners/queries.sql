@@ -51,6 +51,14 @@ LIMIT $3 OFFSET $4;
 -- name: CheckBannerId :one
 SELECT EXISTS(SELECT id FROM banners WHERE id = $1);
 
+-- name: CheckExistsBanner :one
+SELECT EXISTS(
+    SELECT *
+    FROM banners
+    JOIN banners_tag ON banners.id = banners_tag.banner_id
+    WHERE banners.feature_id = $1 AND banners_tag.tag_id = any(sqlc.arg(tag_ids)::INT[])
+);
+
 -- name: UpdateBannerFeature :exec
 UPDATE banners
 SET feature_id = $2
@@ -77,7 +85,7 @@ WHERE banner_id = $1;
 
 -- name: AddBannerTags :exec
 INSERT INTO banners_tag (banner_id, tag_id)
-VALUES ($1, UNNEST($2::INT[]));
+VALUES (@banner_id::INT, UNNEST(@tag_ids::INT[]));
 
 -- name: CreateBanner :one
 INSERT INTO banners (feature_id, is_active, created_at)
@@ -86,4 +94,4 @@ RETURNING id;
 
 -- name: CreateBannerInfo :exec
 INSERT INTO banners_info (banner_id, updated_at, contents)
-VALUES ($1, NOW(), $2);
+VALUES (@banner_id::INT, NOW(), $1);

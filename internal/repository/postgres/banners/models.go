@@ -9,16 +9,16 @@ import (
 )
 
 type Banner struct {
-	ID        int32
-	CreatedAt pgtype.Timestamp
-	IsActive  pgtype.Bool
+	ID        int64
 	FeatureID int32
+	IsActive  bool
+	CreatedAt pgtype.Timestamp
 }
 
 type BannersInfo struct {
 	BannerID  pgtype.Int4
-	UpdatedAt pgtype.Timestamp
 	Contents  []byte
+	UpdatedAt pgtype.Timestamp
 }
 
 type BannersTag struct {
