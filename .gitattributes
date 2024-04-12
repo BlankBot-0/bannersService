@@ -1,0 +1,3 @@
+internal/repository/postgres/banners/db.go linguist-generated=true
+internal/repository/postgres/banners/models.go linguist-generated=true
+internal/repository/postgres/banners/queries.sql.go linguist-generated=true

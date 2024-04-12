@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/repository/postgres/banners/queries.sql"
+    schema: "migrations"
+    gen:
+      go:
+        package: "banners"
+        out: "internal/repository/postgres/banners"
+        sql_package: "pgx/v5"
