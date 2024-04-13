@@ -22,18 +22,20 @@ SELECT banners.id,
        banners.is_active,
        banners.created_at,
        bi.updated_at,
-       array_agg(banners_tag.tag_id) as tags
+       array_agg(banners_tag.tag_id)::INT[] as tags
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
-         JOIN (select banner_id, contents, updated_at
-               from banners_info
-               order by updated_at desc
-               limit 1) as bi ON banners_tag.banner_id = bi.banner_id
-WHERE banners_tag.tag_id = @tag_id::INT
-   OR @tag_id::INT IS NULL
-    AND banners.feature_id = @feature_id::INT
-   OR @feature_id::INT IS NULL
-    AND tag_id = @tag_id::INT
+         JOIN (SELECT banners_info.banner_id, banners_info.contents, banners_info.updated_at
+               FROM banners_info
+                        RIGHT JOIN (SELECT banner_id, MAX(updated_at) as upd
+                                    FROM banners_info
+                                    GROUP BY banner_id) as upds ON banners_info.banner_id = upds.banner_id
+                   AND banners_info.updated_at = upds.upd) as bi
+              ON banners_tag.banner_id = bi.banner_id
+WHERE banners_tag.tag_id = sqlc.narg(tag_id)
+   OR sqlc.narg(tag_id) IS NULL
+    AND banners.feature_id = sqlc.narg(feature_id)
+   OR sqlc.narg(feature_id) IS NULL
 group by 1, 2, 3, 4, 5, 6
 LIMIT @limit_val::INT OFFSET @offset_val::INT;
 

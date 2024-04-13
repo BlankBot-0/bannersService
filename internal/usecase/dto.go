@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"banners/internal/models"
+	"banners/internal/repository/postgres/banners"
+	"time"
 )
 
 type UpdateBannerParams struct {
@@ -43,4 +45,71 @@ func (p UpdateBannerParams) BannerContents() (models.BannerContents, bool) {
 		return nil, false
 	}
 	return p.Contents, true
+}
+
+type UserBannerParams struct {
+	TagID     int32 `json:"tag_id"`
+	FeatureID int32 `json:"feature_id"`
+}
+
+type ListBannerVersionsResponse struct {
+	Versions []ListBannerVersionsResponseRow `json:"version"`
+}
+
+type ListBannerVersionsResponseRow struct {
+	ID        int64     `json:"id"`
+	FeatureID int32     `json:"feature_id"`
+	Contents  []byte    `json:"contents"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func NewListBannerVersionsResponse(rows []banners.ListBannerVersionsRow) ListBannerVersionsResponse {
+	versions := make([]ListBannerVersionsResponseRow, len(rows))
+	for i, row := range rows {
+		versions[i] = ListBannerVersionsResponseRow{
+			ID:        row.ID,
+			FeatureID: row.FeatureID,
+			Contents:  row.Contents,
+			IsActive:  row.IsActive,
+			CreatedAt: row.CreatedAt.Time,
+			UpdatedAt: row.UpdatedAt.Time,
+		}
+	}
+	return ListBannerVersionsResponse{
+		Versions: versions,
+	}
+}
+
+type ListBannersResponse struct {
+	Banners []ListBannersResponseRow `json:"banners"`
+}
+
+type ListBannersResponseRow struct {
+	ID        int64     `json:"id"`
+	FeatureID int32     `json:"feature_id"`
+	Contents  []byte    `json:"contents"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Tags      []int32   `json:"tags"`
+}
+
+func NewListBannersResponse(rows []banners.ListBannersRow) ListBannersResponse {
+	bannersList := make([]ListBannersResponseRow, len(rows))
+	for i, row := range rows {
+		bannersList[i] = ListBannersResponseRow{
+			ID:        row.ID,
+			FeatureID: row.FeatureID,
+			Contents:  row.Contents,
+			IsActive:  row.IsActive,
+			CreatedAt: row.CreatedAt.Time,
+			UpdatedAt: row.UpdatedAt.Time,
+			Tags:      row.Tags,
+		}
+	}
+	return ListBannersResponse{
+		Banners: bannersList,
+	}
 }

@@ -225,25 +225,27 @@ SELECT banners.id,
        banners.is_active,
        banners.created_at,
        bi.updated_at,
-       array_agg(banners_tag.tag_id) as tags
+       array_agg(banners_tag.tag_id)::INT[] as tags
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
-         JOIN (select banner_id, contents, updated_at
-               from banners_info
-               order by updated_at desc
-               limit 1) as bi ON banners_tag.banner_id = bi.banner_id
-WHERE banners_tag.tag_id = $1::INT
-   OR $1::INT IS NULL
-    AND banners.feature_id = $2::INT
-   OR $2::INT IS NULL
-    AND tag_id = $1::INT
+         JOIN (SELECT banners_info.banner_id, banners_info.contents, banners_info.updated_at
+               FROM banners_info
+                        RIGHT JOIN (SELECT banner_id, MAX(updated_at) as upd
+                                    FROM banners_info
+                                    GROUP BY banner_id) as upds ON banners_info.banner_id = upds.banner_id
+                   AND banners_info.updated_at = upds.upd) as bi
+              ON banners_tag.banner_id = bi.banner_id
+WHERE banners_tag.tag_id = $1
+   OR $1 IS NULL
+    AND banners.feature_id = $2
+   OR $2 IS NULL
 group by 1, 2, 3, 4, 5, 6
 LIMIT $4::INT OFFSET $3::INT
 `
 
 type ListBannersParams struct {
-	TagID     int32
-	FeatureID int32
+	TagID     pgtype.Int4
+	FeatureID pgtype.Int4
 	OffsetVal int32
 	LimitVal  int32
 }
@@ -255,7 +257,7 @@ type ListBannersRow struct {
 	IsActive  bool
 	CreatedAt pgtype.Timestamp
 	UpdatedAt pgtype.Timestamp
-	Tags      interface{}
+	Tags      []int32
 }
 
 func (q *Queries) ListBanners(ctx context.Context, arg ListBannersParams) ([]ListBannersRow, error) {

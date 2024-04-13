@@ -15,7 +15,7 @@ type (
 		AddBannerTags(ctx context.Context, arg banners.AddBannerTagsParams) error
 		CheckActiveUserBanner(ctx context.Context, arg banners.CheckActiveUserBannerParams) (bool, error)
 		CheckExistsBanner(ctx context.Context, arg banners.CheckExistsBannerParams) (bool, error)
-		CheckBannerId(ctx context.Context, id int64) (bool, error)
+		CheckBannerId(ctx context.Context, bannerID int32) (bool, error)
 		CreateBanner(ctx context.Context, arg banners.CreateBannerParams) (int64, error)
 		CreateBannerInfo(ctx context.Context, arg banners.CreateBannerInfoParams) error
 		DeleteBannerInfo(ctx context.Context, bannerID int32) error
@@ -131,7 +131,7 @@ func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([
 
 func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParams) error {
 	bannerID := params.BannerID
-	existsBanner, err := s.Repository.CheckBannerId(ctx, int64(bannerID))
+	existsBanner, err := s.Repository.CheckBannerId(ctx, bannerID)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParam
 }
 
 func (s *BMS) DeleteBanner(ctx context.Context, id int32) error {
-	existsBanner, err := s.Repository.CheckBannerId(ctx, int64(id))
+	existsBanner, err := s.Repository.CheckBannerId(ctx, id)
 	if err != nil {
 		return err
 	}
