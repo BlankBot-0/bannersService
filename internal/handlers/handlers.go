@@ -42,12 +42,8 @@ func (c *Controller) UserBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	body, err := json.Marshal(&banner)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	_, err = w.Write(body)
+
+	_, err = w.Write(banner)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -116,7 +112,7 @@ func (c *Controller) BannersSortedHandler(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	bannersListDTO := usecase.NewListBannersResponse(bannersList)
+	bannersListDTO := usecase.NewListBannersDTO(bannersList)
 	w.Header().Set("Content-Type", "application/json")
 	body, err := json.Marshal(bannersListDTO)
 	if err != nil {

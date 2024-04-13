@@ -52,64 +52,49 @@ type UserBannerParams struct {
 	FeatureID int32 `json:"feature_id"`
 }
 
-type ListBannerVersionsResponse struct {
-	Versions []ListBannerVersionsResponseRow `json:"version"`
-}
-
-type ListBannerVersionsResponseRow struct {
-	ID        int64     `json:"id"`
+type BannerDTO struct {
+	ID        int64     `json:"banner_id"`
 	FeatureID int32     `json:"feature_id"`
-	Contents  []byte    `json:"contents"`
+	Contents  string    `json:"content"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewListBannerVersionsResponse(rows []banners.ListBannerVersionsRow) ListBannerVersionsResponse {
-	versions := make([]ListBannerVersionsResponseRow, len(rows))
+func NewBannerVersionsDTO(rows []banners.ListBannerVersionsRow) []BannerDTO {
+	versions := make([]BannerDTO, len(rows))
 	for i, row := range rows {
-		versions[i] = ListBannerVersionsResponseRow{
+		versions[i] = BannerDTO{
 			ID:        row.ID,
 			FeatureID: row.FeatureID,
-			Contents:  row.Contents,
+			Contents:  string(row.Contents),
 			IsActive:  row.IsActive,
 			CreatedAt: row.CreatedAt.Time,
 			UpdatedAt: row.UpdatedAt.Time,
 		}
 	}
-	return ListBannerVersionsResponse{
-		Versions: versions,
-	}
+	return versions
 }
 
-type ListBannersResponse struct {
-	Banners []ListBannersResponseRow `json:"banners"`
+type BannerWithTagsDTO struct {
+	BannerDTO
+	Tags []int32 `json:"tag_ids"`
 }
 
-type ListBannersResponseRow struct {
-	ID        int64     `json:"id"`
-	FeatureID int32     `json:"feature_id"`
-	Contents  []byte    `json:"contents"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Tags      []int32   `json:"tags"`
-}
-
-func NewListBannersResponse(rows []banners.ListBannersRow) ListBannersResponse {
-	bannersList := make([]ListBannersResponseRow, len(rows))
+func NewListBannersDTO(rows []banners.ListBannersRow) []BannerWithTagsDTO {
+	bannersList := make([]BannerWithTagsDTO, len(rows))
 	for i, row := range rows {
-		bannersList[i] = ListBannersResponseRow{
-			ID:        row.ID,
-			FeatureID: row.FeatureID,
-			Contents:  row.Contents,
-			IsActive:  row.IsActive,
-			CreatedAt: row.CreatedAt.Time,
-			UpdatedAt: row.UpdatedAt.Time,
-			Tags:      row.Tags,
+		bannersList[i] = BannerWithTagsDTO{
+			BannerDTO: BannerDTO{
+				ID:        row.ID,
+				FeatureID: row.FeatureID,
+				Contents:  string(row.Contents),
+				IsActive:  row.IsActive,
+				CreatedAt: row.CreatedAt.Time,
+				UpdatedAt: row.UpdatedAt.Time,
+			},
+			Tags: row.Tags,
 		}
 	}
-	return ListBannersResponse{
-		Banners: bannersList,
-	}
+	return bannersList
 }
