@@ -30,12 +30,12 @@ const checkActiveUserBanner = `-- name: CheckActiveUserBanner :one
 SELECT banners.is_active
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
-WHERE banners_tag.tag_id = $1
-  AND banners.feature_id = $2
+WHERE banners_tag.tag_id = $1::INT
+  AND banners.feature_id = $2::INT
 `
 
 type CheckActiveUserBannerParams struct {
-	TagID     pgtype.Int4
+	TagID     int32
 	FeatureID int32
 }
 
@@ -47,23 +47,22 @@ func (q *Queries) CheckActiveUserBanner(ctx context.Context, arg CheckActiveUser
 }
 
 const checkBannerId = `-- name: CheckBannerId :one
-SELECT EXISTS(SELECT id FROM banners WHERE id = $1)
+SELECT EXISTS(SELECT id FROM banners WHERE id = $1::INT)
 `
 
-func (q *Queries) CheckBannerId(ctx context.Context, id int64) (bool, error) {
-	row := q.db.QueryRow(ctx, checkBannerId, id)
+func (q *Queries) CheckBannerId(ctx context.Context, bannerID int32) (bool, error) {
+	row := q.db.QueryRow(ctx, checkBannerId, bannerID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
 }
 
 const checkExistsBanner = `-- name: CheckExistsBanner :one
-SELECT EXISTS(
-    SELECT id, feature_id, is_active, created_at, banner_id, tag_id
-    FROM banners
-    JOIN banners_tag ON banners.id = banners_tag.banner_id
-    WHERE banners.feature_id = $1 AND banners_tag.tag_id = any($2::INT[])
-)
+SELECT EXISTS(SELECT id, feature_id, is_active, created_at, banner_id, tag_id
+              FROM banners
+                       JOIN banners_tag ON banners.id = banners_tag.banner_id
+              WHERE banners.feature_id = $1::INT
+                AND banners_tag.tag_id = any ($2::INT[]))
 `
 
 type CheckExistsBannerParams struct {
@@ -80,7 +79,7 @@ func (q *Queries) CheckExistsBanner(ctx context.Context, arg CheckExistsBannerPa
 
 const createBanner = `-- name: CreateBanner :one
 INSERT INTO banners (feature_id, is_active, created_at)
-VALUES ($1, $2, NOW())
+VALUES ($1::INT, $2::BOOLEAN, NOW())
 RETURNING id
 `
 
@@ -98,26 +97,26 @@ func (q *Queries) CreateBanner(ctx context.Context, arg CreateBannerParams) (int
 
 const createBannerInfo = `-- name: CreateBannerInfo :exec
 INSERT INTO banners_info (banner_id, updated_at, contents)
-VALUES ($2::INT, NOW(), $1)
+VALUES ($1::INT, NOW(), $2)
 `
 
 type CreateBannerInfoParams struct {
-	Contents []byte
 	BannerID int32
+	Contents []byte
 }
 
 func (q *Queries) CreateBannerInfo(ctx context.Context, arg CreateBannerInfoParams) error {
-	_, err := q.db.Exec(ctx, createBannerInfo, arg.Contents, arg.BannerID)
+	_, err := q.db.Exec(ctx, createBannerInfo, arg.BannerID, arg.Contents)
 	return err
 }
 
 const deleteBannerInfo = `-- name: DeleteBannerInfo :exec
 DELETE
 FROM banners_info
-WHERE banner_id = $1
+WHERE banner_id = $1::INT
 `
 
-func (q *Queries) DeleteBannerInfo(ctx context.Context, bannerID pgtype.Int4) error {
+func (q *Queries) DeleteBannerInfo(ctx context.Context, bannerID int32) error {
 	_, err := q.db.Exec(ctx, deleteBannerInfo, bannerID)
 	return err
 }
@@ -125,10 +124,10 @@ func (q *Queries) DeleteBannerInfo(ctx context.Context, bannerID pgtype.Int4) er
 const deleteBannerTags = `-- name: DeleteBannerTags :exec
 DELETE
 FROM banners_tag
-WHERE banner_id = $1
+WHERE banner_id = $1::INT
 `
 
-func (q *Queries) DeleteBannerTags(ctx context.Context, bannerID pgtype.Int4) error {
+func (q *Queries) DeleteBannerTags(ctx context.Context, bannerID int32) error {
 	_, err := q.db.Exec(ctx, deleteBannerTags, bannerID)
 	return err
 }
@@ -138,14 +137,14 @@ SELECT banners_info.contents
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
          JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
-WHERE banners_tag.tag_id = $1
-  AND banners.feature_id = $2
+WHERE banners_tag.tag_id = $1::INT
+  AND banners.feature_id = $2::INT
 ORDER BY banners_info.updated_at DESC
 LIMIT 1
 `
 
 type GetUserBannerParams struct {
-	TagID     pgtype.Int4
+	TagID     int32
 	FeatureID int32
 }
 
@@ -166,15 +165,16 @@ SELECT banners.id,
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
          JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
-WHERE banners_tag.tag_id = $1 AND banners.feature_id = $2
-LIMIT $3 OFFSET $4
+WHERE banners_tag.tag_id = $1::INT
+  AND banners.feature_id = $2::INT
+LIMIT $4::INT OFFSET $3::INT
 `
 
 type ListBannerVersionsParams struct {
-	TagID     pgtype.Int4
+	TagID     int32
 	FeatureID int32
-	Limit     int32
-	Offset    int32
+	OffsetVal int32
+	LimitVal  int32
 }
 
 type ListBannerVersionsRow struct {
@@ -190,8 +190,8 @@ func (q *Queries) ListBannerVersions(ctx context.Context, arg ListBannerVersions
 	rows, err := q.db.Query(ctx, listBannerVersions,
 		arg.TagID,
 		arg.FeatureID,
-		arg.Limit,
-		arg.Offset,
+		arg.OffsetVal,
+		arg.LimitVal,
 	)
 	if err != nil {
 		return nil, err
@@ -232,18 +232,20 @@ FROM banners
                from banners_info
                order by updated_at desc
                limit 1) as bi ON banners_tag.banner_id = bi.banner_id
-WHERE banners_tag.tag_id = $1
-   OR $1 IS NULL AND banners.feature_id = $2
-   OR $2 IS NULL AND tag_id = $1
+WHERE banners_tag.tag_id = $1::INT
+   OR $1::INT IS NULL
+    AND banners.feature_id = $2::INT
+   OR $2::INT IS NULL
+    AND tag_id = $1::INT
 group by 1, 2, 3, 4, 5, 6
-LIMIT $3 OFFSET $4
+LIMIT $4::INT OFFSET $3::INT
 `
 
 type ListBannersParams struct {
-	TagID     pgtype.Int4
+	TagID     int32
 	FeatureID int32
-	Limit     int32
-	Offset    int32
+	OffsetVal int32
+	LimitVal  int32
 }
 
 type ListBannersRow struct {
@@ -260,8 +262,8 @@ func (q *Queries) ListBanners(ctx context.Context, arg ListBannersParams) ([]Lis
 	rows, err := q.db.Query(ctx, listBanners,
 		arg.TagID,
 		arg.FeatureID,
-		arg.Limit,
-		arg.Offset,
+		arg.OffsetVal,
+		arg.LimitVal,
 	)
 	if err != nil {
 		return nil, err
@@ -291,11 +293,11 @@ func (q *Queries) ListBanners(ctx context.Context, arg ListBannersParams) ([]Lis
 
 const updateBannerContents = `-- name: UpdateBannerContents :exec
 INSERT INTO banners_info (banner_id, updated_at, contents)
-VALUES ($1, NOW(), $2)
+VALUES ($1::INT, NOW(), $2)
 `
 
 type UpdateBannerContentsParams struct {
-	BannerID pgtype.Int4
+	BannerID int32
 	Contents []byte
 }
 
@@ -306,32 +308,32 @@ func (q *Queries) UpdateBannerContents(ctx context.Context, arg UpdateBannerCont
 
 const updateBannerFeature = `-- name: UpdateBannerFeature :exec
 UPDATE banners
-SET feature_id = $2
-WHERE id = $1
+SET feature_id = $1::INT
+WHERE id = $2::INT
 `
 
 type UpdateBannerFeatureParams struct {
-	ID        int64
 	FeatureID int32
+	BannerID  int32
 }
 
 func (q *Queries) UpdateBannerFeature(ctx context.Context, arg UpdateBannerFeatureParams) error {
-	_, err := q.db.Exec(ctx, updateBannerFeature, arg.ID, arg.FeatureID)
+	_, err := q.db.Exec(ctx, updateBannerFeature, arg.FeatureID, arg.BannerID)
 	return err
 }
 
 const updateBannerIsActive = `-- name: UpdateBannerIsActive :exec
 UPDATE banners
-SET is_active = $2
-WHERE id = $1
+SET is_active = $1::BOOLEAN
+WHERE id = $2::INT
 `
 
 type UpdateBannerIsActiveParams struct {
-	ID       int64
 	IsActive bool
+	BannerID int32
 }
 
 func (q *Queries) UpdateBannerIsActive(ctx context.Context, arg UpdateBannerIsActiveParams) error {
-	_, err := q.db.Exec(ctx, updateBannerIsActive, arg.ID, arg.IsActive)
+	_, err := q.db.Exec(ctx, updateBannerIsActive, arg.IsActive, arg.BannerID)
 	return err
 }
