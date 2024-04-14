@@ -1,8 +1,8 @@
 package models
 
 type Banner struct {
-	FeatureID int32
-	TagIDs    []int32
-	Contents  BannerContents
-	IsActive  bool
+	TagIDs    []int32       `json:"tag_ids"`
+	FeatureID int32         `json:"feature_id"`
+	Content   BannerContent `json:"content"`
+	IsActive  bool          `json:"is_active"`
 }

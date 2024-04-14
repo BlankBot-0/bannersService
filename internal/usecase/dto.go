@@ -7,11 +7,11 @@ import (
 )
 
 type UpdateBannerParams struct {
-	BannerID  int32                 `json:"banner_id"`
-	TagIDs    []int32               `json:"tag_ids,omitempty"`
-	FeatureID int32                 `json:"feature_id,omitempty"`
-	IsActive  bool                  `json:"is_active,omitempty"`
-	Contents  models.BannerContents `json:"contents,omitempty"`
+	BannerID  int32                `json:"banner_id"`
+	TagIDs    []int32              `json:"tag_ids,omitempty"`
+	FeatureID int32                `json:"feature_id,omitempty"`
+	IsActive  bool                 `json:"is_active,omitempty"`
+	Content   models.BannerContent `json:"contents,omitempty"`
 	Paramsmap map[string]bool
 }
 
@@ -39,12 +39,12 @@ func (p UpdateBannerParams) Active() (bool, bool) {
 	return p.IsActive, true
 }
 
-func (p UpdateBannerParams) BannerContents() (models.BannerContents, bool) {
+func (p UpdateBannerParams) BannerContent() (models.BannerContent, bool) {
 	_, ok := p.Paramsmap["banner_contents"]
 	if !ok {
-		return nil, false
+		return "", false
 	}
-	return p.Contents, true
+	return p.Content, true
 }
 
 type UserBannerParams struct {
@@ -97,4 +97,9 @@ func NewListBannersDTO(rows []banners.ListBannersRow) []BannerWithTagsDTO {
 		}
 	}
 	return bannersList
+}
+
+type BannerJsonDTO struct {
+	BannerWithTagsDTO
+	Contents map[string]string `json:"content"`
 }

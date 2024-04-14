@@ -5,6 +5,7 @@ import (
 	"banners/internal/repository/postgres/banners"
 	"banners/internal/usecase"
 	"context"
+	"encoding/json"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -46,10 +47,10 @@ func NewBMS(deps Deps) *BMS {
 
 //TODO: wrap every query within method in transaction
 
-func (s *BMS) CreateBanner(ctx context.Context, banner models.Banner) error {
+func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) error {
 	existsBanner, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: banner.FeatureID,
-		TagIds:    banner.TagIDs,
+		TagIds:    banner.BannerWithTagsDTO.Tags,
 	})
 	if err != nil {
 		return err
@@ -66,8 +67,12 @@ func (s *BMS) CreateBanner(ctx context.Context, banner models.Banner) error {
 		return err
 	}
 
+	bannerContent, err := json.Marshal(banner.Contents)
+	if err != nil {
+		return err
+	}
 	err = s.Repository.CreateBannerInfo(ctx, banners.CreateBannerInfoParams{
-		Contents: banner.Contents,
+		Contents: bannerContent,
 		BannerID: int32(bannerId),
 	})
 	if err != nil {
@@ -76,23 +81,23 @@ func (s *BMS) CreateBanner(ctx context.Context, banner models.Banner) error {
 
 	err = s.Repository.AddBannerTags(ctx, banners.AddBannerTagsParams{
 		BannerID: int32(bannerId),
-		TagIds:   banner.TagIDs,
+		TagIds:   banner.BannerWithTagsDTO.Tags,
 	})
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (models.BannerContents, error) {
+func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (models.BannerContent, error) {
 	existsBanner, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: featureID,
 		TagIds:    []int32{tagID},
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if !existsBanner {
-		return nil, ErrBannerNotFound
+		return "", ErrBannerNotFound
 	}
 
 	activeBanner, err := s.Repository.CheckActiveUserBanner(ctx, banners.CheckActiveUserBannerParams{
@@ -100,10 +105,10 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 		FeatureID: featureID,
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if !activeBanner {
-		return nil, ErrNotActiveBanner
+		return "", ErrNotActiveBanner
 	}
 
 	banner, err := s.Repository.GetUserBanner(ctx, banners.GetUserBannerParams{
@@ -111,9 +116,9 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 		FeatureID: featureID,
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return banner, nil
+	return models.BannerContent(banner), nil
 }
 
 func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([]banners.ListBannersRow, error) {
@@ -177,11 +182,11 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParam
 		}
 	}
 
-	contents, ok := params.BannerContents()
+	contents, ok := params.BannerContent()
 	if ok {
 		err = s.Repository.UpdateBannerContents(ctx, banners.UpdateBannerContentsParams{
 			BannerID: bannerID,
-			Contents: contents,
+			Contents: []byte(contents),
 		})
 		if err != nil {
 			return err
