@@ -1,5 +1,5 @@
 -- name: GetUserBanner :one
-SELECT banners_info.contents
+SELECT banners_info.contents, banners.is_active
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
          JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
@@ -100,3 +100,11 @@ RETURNING id;
 -- name: CreateBannerInfo :exec
 INSERT INTO banners_info (banner_id, updated_at, contents)
 VALUES (@banner_id::INT, NOW(), @contents);
+
+-- name: AdminCredentials :one
+SELECT password from credentials
+WHERE username = @username::TEXT AND admin = true;
+
+-- name: UserCredentials :one
+SELECT password from credentials
+WHERE username = @username::TEXT AND admin = false;

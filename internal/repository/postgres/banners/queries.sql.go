@@ -26,6 +26,18 @@ func (q *Queries) AddBannerTags(ctx context.Context, arg AddBannerTagsParams) er
 	return err
 }
 
+const adminCredentials = `-- name: AdminCredentials :one
+SELECT password from credentials
+WHERE username = $1::TEXT AND admin = true
+`
+
+func (q *Queries) AdminCredentials(ctx context.Context, username string) (string, error) {
+	row := q.db.QueryRow(ctx, adminCredentials, username)
+	var password string
+	err := row.Scan(&password)
+	return password, err
+}
+
 const checkActiveUserBanner = `-- name: CheckActiveUserBanner :one
 SELECT banners.is_active
 FROM banners
@@ -145,7 +157,7 @@ func (q *Queries) DeleteBannerTags(ctx context.Context, bannerID int32) error {
 }
 
 const getUserBanner = `-- name: GetUserBanner :one
-SELECT banners_info.contents
+SELECT banners_info.contents, banners.is_active
 FROM banners
          JOIN banners_tag ON banners.id = banners_tag.banner_id
          JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
@@ -160,11 +172,16 @@ type GetUserBannerParams struct {
 	FeatureID int32
 }
 
-func (q *Queries) GetUserBanner(ctx context.Context, arg GetUserBannerParams) ([]byte, error) {
+type GetUserBannerRow struct {
+	Contents []byte
+	IsActive bool
+}
+
+func (q *Queries) GetUserBanner(ctx context.Context, arg GetUserBannerParams) (GetUserBannerRow, error) {
 	row := q.db.QueryRow(ctx, getUserBanner, arg.TagID, arg.FeatureID)
-	var contents []byte
-	err := row.Scan(&contents)
-	return contents, err
+	var i GetUserBannerRow
+	err := row.Scan(&i.Contents, &i.IsActive)
+	return i, err
 }
 
 const listBannerVersions = `-- name: ListBannerVersions :many
@@ -327,4 +344,16 @@ type UpdateBannerIsActiveParams struct {
 func (q *Queries) UpdateBannerIsActive(ctx context.Context, arg UpdateBannerIsActiveParams) error {
 	_, err := q.db.Exec(ctx, updateBannerIsActive, arg.IsActive, arg.BannerID)
 	return err
+}
+
+const userCredentials = `-- name: UserCredentials :one
+SELECT password from credentials
+WHERE username = $1::TEXT AND admin = false
+`
+
+func (q *Queries) UserCredentials(ctx context.Context, username string) (string, error) {
+	row := q.db.QueryRow(ctx, userCredentials, username)
+	var password string
+	err := row.Scan(&password)
+	return password, err
 }

@@ -5,6 +5,7 @@ import (
 	"banners/internal/handlers"
 	"banners/internal/repository/postgres/banners"
 	"banners/internal/usecase/BMS"
+	"banners/internal/usecase/authentification"
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,7 +33,13 @@ func main() {
 		Repository: repo,
 		TxBuilder:  dbPool,
 	})
-	usecases := handlers.Usecases{BannerManagementSystem: bms}
+	auth := authentification.NewAuthentificationSystem(authentification.Deps{
+		Repo: repo,
+	}, cfg.Auth)
+	usecases := handlers.Usecases{
+		BannerManagementSystem: bms,
+		AuthentificationSystem: auth,
+	}
 	controller := handlers.NewController(usecases)
 	server := controller.NewServer(cfg.HTTPServer)
 	log.Printf("server is listening at %s", cfg.HTTPServer.Address)

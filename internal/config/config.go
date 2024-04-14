@@ -10,13 +10,21 @@ import (
 type Config struct {
 	Env        string `yaml:"env" env-default:"local"`
 	Dsn        string `yaml:"dsn"`
+	PrivateKey string `yaml:"private_key"`
+	PublicKey  string `yaml:"public_key"`
 	HTTPServer `yaml:"http_server"`
+	Auth       Auth `yaml:"auth"`
 }
 
 type HTTPServer struct {
 	Address     string        `yaml:"address" env-default:"localhost:8080"`
 	Timeout     time.Duration `yaml:"timeout" env-default:"5s"`
 	IdleTimeout time.Duration `yaml:"idleTimeout" env-default:"60s"`
+}
+
+type Auth struct {
+	PrivateKey     string        `yaml:"private_key" env-default:""`
+	ExpirationTime time.Duration `yaml:"expiration_time"`
 }
 
 func MustLoad() *Config {

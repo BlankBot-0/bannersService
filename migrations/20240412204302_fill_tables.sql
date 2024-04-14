@@ -17,6 +17,10 @@ VALUES
     (1, 1),
     (2, 1),
     (3, 2);
+
+INSERT INTO credentials (username, password, admin)
+VALUES ('admin', 'password', TRUE),
+       ('user', 'password', FALSE);
 -- +goose StatementEnd
 
 -- +goose Down
@@ -24,4 +28,5 @@ VALUES
 TRUNCATE banners;
 TRUNCATE banners_info;
 TRUNCATE banners_tag;
+TRUNCATE credentials;
 -- +goose StatementEnd

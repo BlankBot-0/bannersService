@@ -79,3 +79,8 @@ type BannerJsonDTO struct {
 	BannerWithTagsDTO
 	Contents map[string]string `json:"content"`
 }
+
+type CredentialsDTO struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}

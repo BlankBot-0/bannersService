@@ -4,6 +4,7 @@ import (
 	"banners/internal/repository/postgres/banners"
 	"banners/internal/usecase"
 	"banners/internal/usecase/BMS"
+	"banners/internal/usecase/authentification"
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
@@ -263,6 +264,120 @@ func (c *Controller) DeleteBannerHandler(w http.ResponseWriter, r *http.Request)
 	} else if err != nil {
 		ProcessError(w, ErrInternal, http.StatusInternalServerError)
 	}
+}
+func (c *Controller) AdminToken(w http.ResponseWriter, r *http.Request) {
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		ProcessError(w, ErrNoUsername, http.StatusBadRequest)
+		return
+	}
+	password := r.URL.Query().Get("password")
+	if password == "" {
+		ProcessError(w, ErrNoPassword, http.StatusBadRequest)
+		return
+	}
+	credentials := usecase.CredentialsDTO{
+		Password: password,
+		Username: username,
+	}
+	token, err := c.Usecases.AdminToken(r.Context(), credentials)
+	if errors.Is(err, authentification.ErrUnauthorized) {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if errors.Is(err, authentification.ErrInvalidToken) {
+		ProcessError(w, err, http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, authentification.ErrForbidden) {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	body := make(map[string]string)
+	body["token"] = token
+	bodyJSON, _ := json.Marshal(body)
+	_, err = w.Write(bodyJSON)
+}
+
+func (c *Controller) AdminAuth(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("admin_token")
+	if token == "" {
+		http.Error(w, "Missing token", http.StatusBadRequest)
+	}
+	err := c.Usecases.AdminAuth(r.Context(), token)
+	if errors.Is(err, authentification.ErrUnauthorized) {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if errors.Is(err, authentification.ErrInvalidToken) {
+		ProcessError(w, err, http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, authentification.ErrForbidden) {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+		return
+	}
+}
+func (c *Controller) UserToken(w http.ResponseWriter, r *http.Request) {
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		ProcessError(w, ErrNoUsername, http.StatusBadRequest)
+		return
+	}
+	password := r.URL.Query().Get("password")
+	if password == "" {
+		ProcessError(w, ErrNoPassword, http.StatusBadRequest)
+		return
+	}
+	credentials := usecase.CredentialsDTO{
+		Password: password,
+		Username: username,
+	}
+	token, err := c.Usecases.UserToken(r.Context(), credentials)
+	if errors.Is(err, authentification.ErrUnauthorized) {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	body := make(map[string]string)
+	body["token"] = token
+	bodyJSON, _ := json.Marshal(body)
+	_, err = w.Write(bodyJSON)
+}
+
+func (c *Controller) UserAuth(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("user_token")
+	if token == "" {
+		http.Error(w, "Missing token", http.StatusBadRequest)
+	}
+	err := c.Usecases.UserAuth(r.Context(), token)
+	if errors.Is(err, authentification.ErrInvalidToken) {
+		ProcessError(w, err, http.StatusBadRequest)
+	}
+	if errors.Is(err, authentification.ErrUnauthorized) {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+	}
+	if errors.Is(err, authentification.ErrForbidden) {
+		http.Error(w, err.Error(), http.StatusForbidden)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 }
 
 const DefaultLimit = 100

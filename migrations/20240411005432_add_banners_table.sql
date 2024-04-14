@@ -22,6 +22,13 @@ CREATE TABLE banners_tag
     banner_id INTEGER,
     tag_id    INTEGER
 );
+
+CREATE TABLE credentials
+(
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,
+    admin BOOLEAN NOT NULL
+);
 -- +goose StatementEnd
 
 -- +goose Down
@@ -29,4 +36,5 @@ CREATE TABLE banners_tag
 DROP TABLE banners_tag;
 DROP TABLE banners_info;
 DROP TABLE banners;
+DROP TABLE credentials;
 -- +goose StatementEnd

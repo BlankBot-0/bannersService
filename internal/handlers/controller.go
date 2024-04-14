@@ -4,7 +4,7 @@ import "banners/internal/usecase"
 
 type Usecases struct {
 	usecase.BannerManagementSystem // BMS interface
-
+	usecase.AuthentificationSystem
 }
 
 // Controller - is controller/delivery layer

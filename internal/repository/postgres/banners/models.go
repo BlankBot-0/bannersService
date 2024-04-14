@@ -25,3 +25,9 @@ type BannersTag struct {
 	BannerID pgtype.Int4
 	TagID    pgtype.Int4
 }
+
+type Credential struct {
+	Username string
+	Password string
+	Admin    bool
+}
