@@ -19,7 +19,7 @@ CREATE TABLE banners_info
 
 CREATE TABLE banners_tag
 (
-    banner_id INTEGER,
+    banner_id INTEGER PRIMARY KEY,
     tag_id    INTEGER
 );
 
