@@ -9,7 +9,13 @@ import (
 
 func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get("admin_token")
+		token := r.Header.Get("Authorization")
+		tokenSplit := strings.Fields(token)
+
+		if len(tokenSplit) == 0 || tokenSplit[0] != "Bearer" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if token == "" {
 			ProcessError(w, ErrNoToken, http.StatusBadRequest)
 			return
