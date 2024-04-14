@@ -59,6 +59,26 @@ func (c *Controller) UserAuthMiddleware(next http.Handler) http.Handler {
 			ProcessError(w, err, http.StatusBadRequest)
 			return
 		}
+		if err != nil {
+			err := c.Usecases.AdminAuth(r.Context(), token)
+			if errors.Is(err, authentification.ErrUnauthorized) {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+			if errors.Is(err, authentification.ErrInvalidToken) {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+			if errors.Is(err, authentification.ErrForbidden) {
+				http.Error(w, err.Error(), http.StatusForbidden)
+				return
+			}
+			if err != nil {
+				ProcessError(w, ErrInternal, http.StatusInternalServerError)
+				return
+			}
+		}
+
 		if errors.Is(err, authentification.ErrUnauthorized) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
