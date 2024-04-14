@@ -135,18 +135,18 @@ func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([
 	return Banners, nil
 }
 
-func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParams) error {
+func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) error {
 	bannerID := params.BannerID
 	existsBanner, err := s.Repository.CheckBannerId(ctx, bannerID)
 	if err != nil {
 		return err
 	}
 	if !existsBanner {
-		return ErrBannerNotFound
+		return ErrBannerIDNotFound
 	}
 
-	featureID, ok := params.Feature()
-	if ok {
+	if params.FeatureID != nil {
+		featureID := *params.FeatureID
 		err = s.Repository.UpdateBannerFeature(ctx, banners.UpdateBannerFeatureParams{
 			FeatureID: featureID,
 			BannerID:  bannerID,
@@ -156,8 +156,8 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParam
 		}
 	}
 
-	isActive, ok := params.Active()
-	if ok {
+	if params.IsActive != nil {
+		isActive := *params.IsActive
 		err = s.Repository.UpdateBannerIsActive(ctx, banners.UpdateBannerIsActiveParams{
 			IsActive: isActive,
 			BannerID: bannerID,
@@ -167,8 +167,8 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParam
 		}
 	}
 
-	tags, ok := params.Tags()
-	if ok {
+	if params.TagIDs != nil {
+		tags := params.TagIDs
 		err = s.Repository.DeleteBannerTags(ctx, bannerID)
 		if err != nil {
 			return err
@@ -183,11 +183,14 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerParam
 		}
 	}
 
-	contents, ok := params.BannerContent()
-	if ok {
+	if params.Content != nil {
+		bannerContent, err := json.Marshal(params.Content)
+		if err != nil {
+			return err
+		}
 		err = s.Repository.UpdateBannerContents(ctx, banners.UpdateBannerContentsParams{
 			BannerID: bannerID,
-			Contents: []byte(contents),
+			Contents: bannerContent,
 		})
 		if err != nil {
 			return err

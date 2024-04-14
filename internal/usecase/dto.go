@@ -1,50 +1,16 @@
 package usecase
 
 import (
-	"banners/internal/models"
 	"banners/internal/repository/postgres/banners"
 	"time"
 )
 
-type UpdateBannerParams struct {
-	BannerID  int32                `json:"banner_id"`
-	TagIDs    []int32              `json:"tag_ids,omitempty"`
-	FeatureID int32                `json:"feature_id,omitempty"`
-	IsActive  bool                 `json:"is_active,omitempty"`
-	Content   models.BannerContent `json:"contents,omitempty"`
-	Paramsmap map[string]bool
-}
-
-func (p UpdateBannerParams) Tags() ([]int32, bool) {
-	_, ok := p.Paramsmap["tag_ids"]
-	if !ok {
-		return nil, false
-	}
-	return p.TagIDs, true
-}
-
-func (p UpdateBannerParams) Feature() (int32, bool) {
-	_, ok := p.Paramsmap["feature_id"]
-	if !ok {
-		return 0, false
-	}
-	return p.FeatureID, true
-}
-
-func (p UpdateBannerParams) Active() (bool, bool) {
-	_, ok := p.Paramsmap["is_active"]
-	if !ok {
-		return false, false
-	}
-	return p.IsActive, true
-}
-
-func (p UpdateBannerParams) BannerContent() (models.BannerContent, bool) {
-	_, ok := p.Paramsmap["banner_contents"]
-	if !ok {
-		return "", false
-	}
-	return p.Content, true
+type UpdateBannerDTO struct {
+	BannerID  int32
+	TagIDs    []int32           `json:"tag_ids,omitempty"`
+	FeatureID *int32            `json:"feature_id,omitempty"`
+	IsActive  *bool             `json:"is_active,omitempty"`
+	Content   map[string]string `json:"content,omitempty"`
 }
 
 type UserBannerParams struct {
