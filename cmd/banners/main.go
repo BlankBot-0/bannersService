@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
-	"net/http"
 )
 
 func main() {
@@ -35,8 +34,7 @@ func main() {
 	})
 	usecases := handlers.Usecases{BannerManagementSystem: bms}
 	controller := handlers.NewController(usecases)
-	router := controller.NewRouter()
-	addr := ":8080"
-	log.Printf("server is listening at %s", addr)
-	log.Fatal(http.ListenAndServe(addr, router))
+	server := controller.NewServer(cfg.HTTPServer)
+	log.Printf("server is listening at %s", cfg.HTTPServer.Address)
+	log.Fatal(server.ListenAndServe())
 }

@@ -1,20 +1,30 @@
 package handlers
 
 import (
+	"banners/internal/config"
+	"banners/internal/middleware"
 	"net/http"
 )
 
-// NewRouter - returns http.Handler
-func (c *Controller) NewRouter() http.Handler {
+func (c *Controller) NewServer(cfg config.HTTPServer) http.Server {
 	// Router layer
-	mux := http.NewServeMux()
+	router := http.NewServeMux()
 
-	mux.HandleFunc("GET /user_banner", c.UserBannerHandler)
-	mux.HandleFunc("GET /banner", c.BannersSortedHandler)
-	mux.HandleFunc("POST /banner", c.CreateBannerHandler)
-	mux.HandleFunc("PATCH /banner/{id}", c.PatchBannerHandler)
-	mux.HandleFunc("DELETE /banner/{id}", c.DeleteBannerHandler)
-	mux.HandleFunc("GET /banner/versions", c.BannerVersionsHandler)
+	userRouter := http.NewServeMux()
+	userRouter.HandleFunc("GET /user_banner", c.UserBannerHandler)
 
-	return mux
+	adminRouter := http.NewServeMux()
+	adminRouter.HandleFunc("GET /banner", c.BannersSortedHandler)
+	adminRouter.HandleFunc("POST /banner", c.CreateBannerHandler)
+	adminRouter.HandleFunc("PATCH /banner/{id}", c.PatchBannerHandler)
+	adminRouter.HandleFunc("DELETE /banner/{id}", c.DeleteBannerHandler)
+	adminRouter.HandleFunc("GET /banner/versions", c.BannerVersionsHandler)
+
+	router.Handle("/", middleware.EnsureAdmin(adminRouter))
+	router.Handle("GET /user_banner", middleware.UserAuth(userRouter))
+
+	return http.Server{
+		Addr:    cfg.Address,
+		Handler: middleware.Logging(router),
+	}
 }

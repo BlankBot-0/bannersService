@@ -3,7 +3,8 @@ package handlers
 import "banners/internal/usecase"
 
 type Usecases struct {
-	usecase.BannerManagementSystem // OMS interface
+	usecase.BannerManagementSystem // BMS interface
+
 }
 
 // Controller - is controller/delivery layer
