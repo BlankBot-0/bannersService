@@ -23,7 +23,7 @@ type (
 		DeleteBannerInfo(ctx context.Context, bannerID int32) error
 		DeleteBannerTags(ctx context.Context, bannerID int32) error
 		DeleteBanner(ctx context.Context, bannerID int32) error
-		GetUserBanner(ctx context.Context, arg banners.GetUserBannerParams) ([]byte, error)
+		GetUserBanner(ctx context.Context, arg banners.GetUserBannerParams) (banners.GetUserBannerRow, error)
 		ListBannerVersions(ctx context.Context, arg banners.ListBannerVersionsParams) ([]banners.ListBannerVersionsRow, error)
 		ListBanners(ctx context.Context, arg banners.ListBannersParams) ([]banners.ListBannersRow, error)
 		UpdateBannerContents(ctx context.Context, arg banners.UpdateBannerContentsParams) error
@@ -54,8 +54,6 @@ func NewBMS(deps Deps) *BMS {
 		Deps: deps,
 	}
 }
-
-//TODO: wrap every query within method in transaction
 
 func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) error {
 	tx, err := s.TxBuilder.Begin(ctx)
@@ -115,41 +113,26 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 	defer tx.Rollback(ctx)
 	qtx := s.Repository.WithTx(tx)
 
-	_, err = qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
-		FeatureID: featureID,
-		TagIds:    []int32{tagID},
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrBannerNotFound
-	}
-	if err != nil {
-		return "", err
-	}
-
-	activeBanner, err := qtx.CheckActiveUserBanner(ctx, banners.CheckActiveUserBannerParams{
-		TagID:     tagID,
-		FeatureID: featureID,
-	})
-	if err != nil {
-		return "", err
-	}
-	if !activeBanner {
-		return "", ErrNotActiveBanner
-	}
-
 	banner, err := qtx.GetUserBanner(ctx, banners.GetUserBannerParams{
 		TagID:     tagID,
 		FeatureID: featureID,
 	})
+
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrBannerNotFound
+		}
 		return "", err
+	}
+	if !banner.IsActive {
+		return "", ErrNotActiveBanner
 	}
 	err = tx.Commit(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	return models.BannerContent(banner), nil
+	return models.BannerContent(banner.Contents), nil
 }
 
 func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([]banners.ListBannersRow, error) {
