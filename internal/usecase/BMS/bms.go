@@ -60,7 +60,9 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerDTO) error 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 	qtx := s.Repository.WithTx(tx)
 
 	_, err = qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
@@ -110,7 +112,9 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 	if err != nil {
 		return "", err
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 	qtx := s.Repository.WithTx(tx)
 
 	banner, err := qtx.GetUserBanner(ctx, banners.GetUserBannerParams{
@@ -140,7 +144,9 @@ func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 	qtx := s.Repository.WithTx(tx)
 
 	Banners, err := qtx.ListBanners(ctx, banners.ListBannersParams{
@@ -165,7 +171,9 @@ func (s *BMS) ListBannerVersions(ctx context.Context, arg usecase.BannerVersions
 	if err != nil {
 		return usecase.BannerVersionsDTO{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 	qtx := s.Repository.WithTx(tx)
 
 	bannerID, err := qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
@@ -210,7 +218,9 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 	qtx := s.Repository.WithTx(tx)
 
 	bannerID := params.BannerID
@@ -282,7 +292,9 @@ func (s *BMS) DeleteBanner(ctx context.Context, id int32) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func(tx pgx.Tx, ctx context.Context) {
+		_ = tx.Rollback(ctx)
+	}(tx, ctx)
 	qtx := s.Repository.WithTx(tx)
 
 	existsBanner, err := qtx.CheckBannerId(ctx, id)

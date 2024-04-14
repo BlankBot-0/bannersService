@@ -341,5 +341,5 @@ func ProcessError(w http.ResponseWriter, err error, statusCode int) {
 	body := make(map[string]string)
 	body["error"] = err.Error()
 	bodyJSON, _ := json.Marshal(body)
-	w.Write(bodyJSON)
+	_, _ = w.Write(bodyJSON)
 }
