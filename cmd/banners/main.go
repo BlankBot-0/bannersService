@@ -29,7 +29,10 @@ func main() {
 
 	repo := banners.New(dbPool)
 
-	bms := BMS.NewBMS(BMS.Deps{Repository: repo})
+	bms := BMS.NewBMS(BMS.Deps{
+		Repository: repo,
+		TxBuilder:  dbPool,
+	})
 	usecases := handlers.Usecases{BannerManagementSystem: bms}
 	controller := handlers.NewController(usecases)
 	router := controller.NewRouter()

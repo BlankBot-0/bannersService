@@ -31,10 +31,18 @@ type (
 		UpdateBannerIsActive(ctx context.Context, arg banners.UpdateBannerIsActiveParams) error
 		WithTx(tx pgx.Tx) *banners.Queries
 	}
+	txBuilder interface {
+		Begin(ctx context.Context) (pgx.Tx, error)
+	}
+	db interface {
+		banners.DBTX
+		txBuilder
+	}
 )
 
 type Deps struct {
 	Repository BMSRepository
+	TxBuilder  db
 }
 
 type BMS struct {
@@ -50,18 +58,25 @@ func NewBMS(deps Deps) *BMS {
 //TODO: wrap every query within method in transaction
 
 func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) error {
-	_, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
-		FeatureID: banner.FeatureID,
-		TagIds:    banner.BannerWithTagsDTO.Tags,
-	})
+	tx, err := s.TxBuilder.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback(ctx)
+	qtx := s.Repository.WithTx(tx)
+
+	_, err = qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
+		FeatureID: banner.FeatureID,
+		TagIds:    banner.BannerWithTagsDTO.Tags,
+	})
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return ErrFeatureTagPairAlreadyExists
 	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
 
-	bannerId, err := s.Repository.CreateBanner(ctx, banners.CreateBannerParams{
+	bannerId, err := qtx.CreateBanner(ctx, banners.CreateBannerParams{
 		FeatureID: banner.FeatureID,
 		IsActive:  banner.IsActive,
 	})
@@ -73,7 +88,7 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) er
 	if err != nil {
 		return err
 	}
-	err = s.Repository.CreateBannerInfo(ctx, banners.CreateBannerInfoParams{
+	err = qtx.CreateBannerInfo(ctx, banners.CreateBannerInfoParams{
 		Contents: bannerContent,
 		BannerID: int32(bannerId),
 	})
@@ -81,18 +96,26 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) er
 		return err
 	}
 
-	err = s.Repository.AddBannerTags(ctx, banners.AddBannerTagsParams{
+	err = qtx.AddBannerTags(ctx, banners.AddBannerTagsParams{
 		BannerID: int32(bannerId),
 		TagIds:   banner.BannerWithTagsDTO.Tags,
 	})
 	if err != nil {
 		return err
 	}
-	return nil
+
+	return tx.Commit(ctx)
 }
 
 func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (models.BannerContent, error) {
-	_, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
+	tx, err := s.TxBuilder.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.Repository.WithTx(tx)
+
+	_, err = qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: featureID,
 		TagIds:    []int32{tagID},
 	})
@@ -103,7 +126,7 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 		return "", err
 	}
 
-	activeBanner, err := s.Repository.CheckActiveUserBanner(ctx, banners.CheckActiveUserBannerParams{
+	activeBanner, err := qtx.CheckActiveUserBanner(ctx, banners.CheckActiveUserBannerParams{
 		TagID:     tagID,
 		FeatureID: featureID,
 	})
@@ -114,18 +137,30 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 		return "", ErrNotActiveBanner
 	}
 
-	banner, err := s.Repository.GetUserBanner(ctx, banners.GetUserBannerParams{
+	banner, err := qtx.GetUserBanner(ctx, banners.GetUserBannerParams{
 		TagID:     tagID,
 		FeatureID: featureID,
 	})
 	if err != nil {
 		return "", err
 	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	return models.BannerContent(banner), nil
 }
 
 func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([]banners.ListBannersRow, error) {
-	Banners, err := s.Repository.ListBanners(ctx, banners.ListBannersParams{
+	tx, err := s.TxBuilder.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.Repository.WithTx(tx)
+
+	Banners, err := qtx.ListBanners(ctx, banners.ListBannersParams{
 		TagID:     arg.TagID,
 		FeatureID: arg.FeatureID,
 		OffsetVal: arg.OffsetVal,
@@ -134,11 +169,23 @@ func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([
 	if err != nil {
 		return nil, err
 	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return Banners, nil
 }
 
 func (s *BMS) ListBannerVersions(ctx context.Context, arg usecase.BannerVersionsParams) (usecase.BannerVersionsDTO, error) {
-	bannerID, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
+	tx, err := s.TxBuilder.Begin(ctx)
+	if err != nil {
+		return usecase.BannerVersionsDTO{}, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.Repository.WithTx(tx)
+
+	bannerID, err := qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: arg.FeatureID,
 		TagIds:    []int32{arg.TagID},
 	})
@@ -157,11 +204,16 @@ func (s *BMS) ListBannerVersions(ctx context.Context, arg usecase.BannerVersions
 	if arg.Offset != nil {
 		offset = *arg.Offset
 	}
-	versions, err := s.Repository.ListBannerVersions(ctx, banners.ListBannerVersionsParams{
+	versions, err := qtx.ListBannerVersions(ctx, banners.ListBannerVersionsParams{
 		BannerID:  int32(bannerID),
 		OffsetVal: offset,
 		LimitVal:  limit,
 	})
+	if err != nil {
+		return usecase.BannerVersionsDTO{}, err
+	}
+
+	err = tx.Commit(ctx)
 	if err != nil {
 		return usecase.BannerVersionsDTO{}, err
 	}
@@ -171,8 +223,15 @@ func (s *BMS) ListBannerVersions(ctx context.Context, arg usecase.BannerVersions
 }
 
 func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) error {
+	tx, err := s.TxBuilder.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.Repository.WithTx(tx)
+
 	bannerID := params.BannerID
-	existsBanner, err := s.Repository.CheckBannerId(ctx, bannerID)
+	existsBanner, err := qtx.CheckBannerId(ctx, bannerID)
 	if err != nil {
 		return err
 	}
@@ -182,7 +241,7 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) 
 
 	if params.FeatureID != nil {
 		featureID := *params.FeatureID
-		err = s.Repository.UpdateBannerFeature(ctx, banners.UpdateBannerFeatureParams{
+		err = qtx.UpdateBannerFeature(ctx, banners.UpdateBannerFeatureParams{
 			FeatureID: featureID,
 			BannerID:  bannerID,
 		})
@@ -193,7 +252,7 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) 
 
 	if params.IsActive != nil {
 		isActive := *params.IsActive
-		err = s.Repository.UpdateBannerIsActive(ctx, banners.UpdateBannerIsActiveParams{
+		err = qtx.UpdateBannerIsActive(ctx, banners.UpdateBannerIsActiveParams{
 			IsActive: isActive,
 			BannerID: bannerID,
 		})
@@ -204,12 +263,12 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) 
 
 	if params.TagIDs != nil {
 		tags := params.TagIDs
-		err = s.Repository.DeleteBannerTags(ctx, bannerID)
+		err = qtx.DeleteBannerTags(ctx, bannerID)
 		if err != nil {
 			return err
 		}
 
-		err = s.Repository.AddBannerTags(ctx, banners.AddBannerTagsParams{
+		err = qtx.AddBannerTags(ctx, banners.AddBannerTagsParams{
 			BannerID: bannerID,
 			TagIds:   tags,
 		})
@@ -223,7 +282,7 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) 
 		if err != nil {
 			return err
 		}
-		err = s.Repository.UpdateBannerContents(ctx, banners.UpdateBannerContentsParams{
+		err = qtx.UpdateBannerContents(ctx, banners.UpdateBannerContentsParams{
 			BannerID: bannerID,
 			Contents: bannerContent,
 		})
@@ -232,11 +291,18 @@ func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) 
 		}
 	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 func (s *BMS) DeleteBanner(ctx context.Context, id int32) error {
-	existsBanner, err := s.Repository.CheckBannerId(ctx, id)
+	tx, err := s.TxBuilder.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.Repository.WithTx(tx)
+
+	existsBanner, err := qtx.CheckBannerId(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -244,22 +310,22 @@ func (s *BMS) DeleteBanner(ctx context.Context, id int32) error {
 		return ErrBannerNotFound
 	}
 
-	err = s.Repository.DeleteBannerTags(ctx, id)
+	err = qtx.DeleteBannerTags(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	err = s.Repository.DeleteBannerInfo(ctx, id)
+	err = qtx.DeleteBannerInfo(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	err = s.Repository.DeleteBanner(ctx, id)
+	err = qtx.DeleteBanner(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 const DefaultBannerVersionsLimit = int32(3)
