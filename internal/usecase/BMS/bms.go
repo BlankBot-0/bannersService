@@ -21,6 +21,7 @@ type (
 		CreateBannerInfo(ctx context.Context, arg banners.CreateBannerInfoParams) error
 		DeleteBannerInfo(ctx context.Context, bannerID int32) error
 		DeleteBannerTags(ctx context.Context, bannerID int32) error
+		DeleteBanner(ctx context.Context, bannerID int32) error
 		GetUserBanner(ctx context.Context, arg banners.GetUserBannerParams) ([]byte, error)
 		ListBannerVersions(ctx context.Context, arg banners.ListBannerVersionsParams) ([]banners.ListBannerVersionsRow, error)
 		ListBanners(ctx context.Context, arg banners.ListBannersParams) ([]banners.ListBannersRow, error)
@@ -211,6 +212,11 @@ func (s *BMS) DeleteBanner(ctx context.Context, id int32) error {
 	}
 
 	err = s.Repository.DeleteBannerInfo(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	err = s.Repository.DeleteBanner(ctx, id)
 	if err != nil {
 		return err
 	}

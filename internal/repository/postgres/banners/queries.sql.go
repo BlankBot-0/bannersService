@@ -110,6 +110,17 @@ func (q *Queries) CreateBannerInfo(ctx context.Context, arg CreateBannerInfoPara
 	return err
 }
 
+const deleteBanner = `-- name: DeleteBanner :exec
+DELETE
+FROM banners
+WHERE id = $1::INT
+`
+
+func (q *Queries) DeleteBanner(ctx context.Context, bannerID int32) error {
+	_, err := q.db.Exec(ctx, deleteBanner, bannerID)
+	return err
+}
+
 const deleteBannerInfo = `-- name: DeleteBannerInfo :exec
 DELETE
 FROM banners_info

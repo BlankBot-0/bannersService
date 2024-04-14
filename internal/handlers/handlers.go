@@ -158,12 +158,25 @@ func (c *Controller) PatchBannerHandler(w http.ResponseWriter, r *http.Request) 
 // DeleteBannerHandler handles DELETE request with
 // Query params: id;
 // Header params: token
-func (c *Controller) DeleteBannerHandler(w http.ResponseWriter, r *http.Request) {}
+func (c *Controller) DeleteBannerHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil {
+		ProcessError(w, ErrIncorrectID, http.StatusBadRequest)
+		return
+	}
+
+	err = c.Usecases.DeleteBanner(r.Context(), int32(id))
+	if errors.Is(err, BMS.ErrBannerIDNotFound) {
+		ProcessError(w, err, http.StatusNotFound)
+	} else if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+	}
+}
 
 const DefaultLimit = 100
 const DefaultOffset = 0
 
-func processError(w http.ResponseWriter, err error, statusCode int) {
+func ProcessError(w http.ResponseWriter, err error, statusCode int) {
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "application/json")
 

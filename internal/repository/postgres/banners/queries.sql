@@ -87,6 +87,11 @@ DELETE
 FROM banners_info
 WHERE banner_id = @banner_id::INT;
 
+-- name: DeleteBanner :exec
+DELETE
+FROM banners
+WHERE id = @banner_id::INT;
+
 -- name: AddBannerTags :exec
 INSERT INTO banners_tag (banner_id, tag_id)
 VALUES (@banner_id::INT, UNNEST(@tag_ids::INT[]));
