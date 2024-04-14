@@ -4,6 +4,7 @@ import (
 	"banners/internal/usecase/authentification"
 	"errors"
 	"net/http"
+	"strings"
 )
 
 func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
@@ -36,7 +37,13 @@ func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
 
 func (c *Controller) UserAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.URL.Query().Get("user_token")
+		token := r.Header.Get("Authorization")
+		tokenSplit := strings.Fields(token)
+
+		if len(tokenSplit) == 0 || tokenSplit[0] != "Bearer" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		if token == "" {
 			ProcessError(w, ErrNoToken, http.StatusBadRequest)
 			return
