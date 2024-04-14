@@ -6,6 +6,7 @@ import (
 	"banners/internal/usecase"
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -15,7 +16,7 @@ type (
 	BMSRepository interface {
 		AddBannerTags(ctx context.Context, arg banners.AddBannerTagsParams) error
 		CheckActiveUserBanner(ctx context.Context, arg banners.CheckActiveUserBannerParams) (bool, error)
-		CheckExistsBanner(ctx context.Context, arg banners.CheckExistsBannerParams) (bool, error)
+		CheckExistsBanner(ctx context.Context, arg banners.CheckExistsBannerParams) (int64, error)
 		CheckBannerId(ctx context.Context, bannerID int32) (bool, error)
 		CreateBanner(ctx context.Context, arg banners.CreateBannerParams) (int64, error)
 		CreateBannerInfo(ctx context.Context, arg banners.CreateBannerInfoParams) error
@@ -49,14 +50,14 @@ func NewBMS(deps Deps) *BMS {
 //TODO: wrap every query within method in transaction
 
 func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) error {
-	existsBanner, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
+	_, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: banner.FeatureID,
 		TagIds:    banner.BannerWithTagsDTO.Tags,
 	})
 	if err != nil {
 		return err
 	}
-	if existsBanner {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return ErrFeatureTagPairAlreadyExists
 	}
 
@@ -89,16 +90,17 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) er
 	}
 	return nil
 }
+
 func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (models.BannerContent, error) {
-	existsBanner, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
+	_, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: featureID,
 		TagIds:    []int32{tagID},
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrBannerNotFound
+	}
 	if err != nil {
 		return "", err
-	}
-	if !existsBanner {
-		return "", ErrBannerNotFound
 	}
 
 	activeBanner, err := s.Repository.CheckActiveUserBanner(ctx, banners.CheckActiveUserBannerParams{
@@ -133,6 +135,39 @@ func (s *BMS) ListBanners(ctx context.Context, arg banners.ListBannersParams) ([
 		return nil, err
 	}
 	return Banners, nil
+}
+
+func (s *BMS) ListBannerVersions(ctx context.Context, arg usecase.BannerVersionsParams) (usecase.BannerVersionsDTO, error) {
+	bannerID, err := s.Repository.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
+		FeatureID: arg.FeatureID,
+		TagIds:    []int32{arg.TagID},
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return usecase.BannerVersionsDTO{}, ErrBannerNotFound
+	}
+	if err != nil {
+		return usecase.BannerVersionsDTO{}, err
+	}
+
+	limit := DefaultBannerVersionsLimit
+	if arg.Limit != nil {
+		limit = *arg.Limit
+	}
+	offset := DefaultBannerVersionsOffset
+	if arg.Offset != nil {
+		offset = *arg.Offset
+	}
+	versions, err := s.Repository.ListBannerVersions(ctx, banners.ListBannerVersionsParams{
+		BannerID:  int32(bannerID),
+		OffsetVal: offset,
+		LimitVal:  limit,
+	})
+	if err != nil {
+		return usecase.BannerVersionsDTO{}, err
+	}
+
+	return usecase.NewBannerVersionsDTO(versions, int32(bannerID)), nil
+
 }
 
 func (s *BMS) UpdateBanner(ctx context.Context, params usecase.UpdateBannerDTO) error {
@@ -226,3 +261,6 @@ func (s *BMS) DeleteBanner(ctx context.Context, id int32) error {
 
 	return nil
 }
+
+const DefaultBannerVersionsLimit = int32(3)
+const DefaultBannerVersionsOffset = int32(0)

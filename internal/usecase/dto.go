@@ -13,9 +13,11 @@ type UpdateBannerDTO struct {
 	Content   map[string]string `json:"content,omitempty"`
 }
 
-type UserBannerParams struct {
-	TagID     int32 `json:"tag_id"`
-	FeatureID int32 `json:"feature_id"`
+type BannerVersionsParams struct {
+	TagID     int32  `json:"tag_id"`
+	FeatureID int32  `json:"feature_id"`
+	Limit     *int32 `json:"limit,omitempty"`
+	Offset    *int32 `json:"offset,omitempty"`
 }
 
 type BannerDTO struct {
@@ -27,19 +29,27 @@ type BannerDTO struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func NewBannerVersionsDTO(rows []banners.ListBannerVersionsRow) []BannerDTO {
-	versions := make([]BannerDTO, len(rows))
+type BannerVersionDTO struct {
+	Content   string    `json:"content"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+type BannerVersionsDTO struct {
+	ID       int32              `json:"banner_id"`
+	Versions []BannerVersionDTO `json:"versions"`
+}
+
+func NewBannerVersionsDTO(rows []banners.ListBannerVersionsRow, bannerID int32) BannerVersionsDTO {
+	versions := make([]BannerVersionDTO, len(rows))
 	for i, row := range rows {
-		versions[i] = BannerDTO{
-			ID:        row.ID,
-			FeatureID: row.FeatureID,
-			Contents:  string(row.Contents),
-			IsActive:  row.IsActive,
-			CreatedAt: row.CreatedAt.Time,
+		versions[i] = BannerVersionDTO{
+			Content:   string(row.Contents),
 			UpdatedAt: row.UpdatedAt.Time,
 		}
 	}
-	return versions
+	return BannerVersionsDTO{
+		ID:       bannerID,
+		Versions: versions,
+	}
 }
 
 type BannerWithTagsDTO struct {

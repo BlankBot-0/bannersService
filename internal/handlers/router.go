@@ -14,6 +14,7 @@ func (c *Controller) NewRouter() http.Handler {
 	mux.HandleFunc("POST /banner", c.CreateBannerHandler)
 	mux.HandleFunc("PATCH /banner/{id}", c.PatchBannerHandler)
 	mux.HandleFunc("DELETE /banner/{id}", c.DeleteBannerHandler)
+	mux.HandleFunc("GET /banner/versions", c.BannerVersionsHandler)
 
 	return mux
 }

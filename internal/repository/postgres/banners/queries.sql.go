@@ -58,11 +58,12 @@ func (q *Queries) CheckBannerId(ctx context.Context, bannerID int32) (bool, erro
 }
 
 const checkExistsBanner = `-- name: CheckExistsBanner :one
-SELECT EXISTS(SELECT id, feature_id, is_active, created_at, banner_id, tag_id
-              FROM banners
-                       JOIN banners_tag ON banners.id = banners_tag.banner_id
-              WHERE banners.feature_id = $1::INT
-                AND banners_tag.tag_id = any ($2::INT[]))
+SELECT banners.id
+FROM banners
+         JOIN banners_tag ON banners.id = banners_tag.banner_id
+WHERE banners.feature_id = $1::INT
+  AND banners_tag.tag_id = any ($2::INT[])
+LIMIT 1
 `
 
 type CheckExistsBannerParams struct {
@@ -70,11 +71,11 @@ type CheckExistsBannerParams struct {
 	TagIds    []int32
 }
 
-func (q *Queries) CheckExistsBanner(ctx context.Context, arg CheckExistsBannerParams) (bool, error) {
+func (q *Queries) CheckExistsBanner(ctx context.Context, arg CheckExistsBannerParams) (int64, error) {
 	row := q.db.QueryRow(ctx, checkExistsBanner, arg.FeatureID, arg.TagIds)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createBanner = `-- name: CreateBanner :one
@@ -167,43 +168,27 @@ func (q *Queries) GetUserBanner(ctx context.Context, arg GetUserBannerParams) ([
 }
 
 const listBannerVersions = `-- name: ListBannerVersions :many
-SELECT banners.id,
-       banners.feature_id,
-       banners_info.contents,
-       banners.is_active,
-       banners.created_at,
+SELECT banners_info.contents,
        banners_info.updated_at
 FROM banners
-         JOIN banners_tag ON banners.id = banners_tag.banner_id
-         JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
-WHERE banners_tag.tag_id = $1::INT
-  AND banners.feature_id = $2::INT
-LIMIT $4::INT OFFSET $3::INT
+         JOIN banners_info ON banners.id = banners_info.banner_id
+WHERE banners.id = $1::INT
+LIMIT $3::INT OFFSET $2::INT
 `
 
 type ListBannerVersionsParams struct {
-	TagID     int32
-	FeatureID int32
+	BannerID  int32
 	OffsetVal int32
 	LimitVal  int32
 }
 
 type ListBannerVersionsRow struct {
-	ID        int64
-	FeatureID int32
 	Contents  []byte
-	IsActive  bool
-	CreatedAt pgtype.Timestamp
 	UpdatedAt pgtype.Timestamp
 }
 
 func (q *Queries) ListBannerVersions(ctx context.Context, arg ListBannerVersionsParams) ([]ListBannerVersionsRow, error) {
-	rows, err := q.db.Query(ctx, listBannerVersions,
-		arg.TagID,
-		arg.FeatureID,
-		arg.OffsetVal,
-		arg.LimitVal,
-	)
+	rows, err := q.db.Query(ctx, listBannerVersions, arg.BannerID, arg.OffsetVal, arg.LimitVal)
 	if err != nil {
 		return nil, err
 	}
@@ -211,14 +196,7 @@ func (q *Queries) ListBannerVersions(ctx context.Context, arg ListBannerVersions
 	var items []ListBannerVersionsRow
 	for rows.Next() {
 		var i ListBannerVersionsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.FeatureID,
-			&i.Contents,
-			&i.IsActive,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		if err := rows.Scan(&i.Contents, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

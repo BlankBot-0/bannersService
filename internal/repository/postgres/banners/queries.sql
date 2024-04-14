@@ -40,28 +40,24 @@ group by 1, 2, 3, 4, 5, 6
 LIMIT @limit_val::INT OFFSET @offset_val::INT;
 
 -- name: ListBannerVersions :many
-SELECT banners.id,
-       banners.feature_id,
-       banners_info.contents,
-       banners.is_active,
-       banners.created_at,
+SELECT banners_info.contents,
        banners_info.updated_at
 FROM banners
-         JOIN banners_tag ON banners.id = banners_tag.banner_id
-         JOIN banners_info ON banners_tag.banner_id = banners_info.banner_id
-WHERE banners_tag.tag_id = @tag_id::INT
-  AND banners.feature_id = @feature_id::INT
+         JOIN banners_info ON banners.id = banners_info.banner_id
+WHERE banners.id = @banner_id::INT
 LIMIT @limit_val::INT OFFSET @offset_val::INT;
+
 
 -- name: CheckBannerId :one
 SELECT EXISTS(SELECT id FROM banners WHERE id = @banner_id::INT);
 
 -- name: CheckExistsBanner :one
-SELECT EXISTS(SELECT *
-              FROM banners
-                       JOIN banners_tag ON banners.id = banners_tag.banner_id
-              WHERE banners.feature_id = @feature_id::INT
-                AND banners_tag.tag_id = any (@tag_ids::INT[]));
+SELECT banners.id
+FROM banners
+         JOIN banners_tag ON banners.id = banners_tag.banner_id
+WHERE banners.feature_id = @feature_id::INT
+  AND banners_tag.tag_id = any (@tag_ids::INT[])
+LIMIT 1;
 
 -- name: UpdateBannerFeature :exec
 UPDATE banners

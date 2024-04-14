@@ -6,6 +6,7 @@ import (
 	"banners/internal/usecase/BMS"
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"net/http"
 	"strconv"
@@ -39,7 +40,7 @@ func (c *Controller) UserBannerHandler(w http.ResponseWriter, r *http.Request) {
 
 	banner, err := c.Usecases.UserBanner(r.Context(), int32(tag), int32(feature))
 	if err != nil {
-		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+		ProcessError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -129,6 +130,77 @@ func (c *Controller) BannersSortedHandler(w http.ResponseWriter, r *http.Request
 		ProcessError(w, ErrInternal, http.StatusInternalServerError)
 		return
 	}
+}
+
+func (c *Controller) BannerVersionsHandler(w http.ResponseWriter, r *http.Request) {
+	tagID := r.URL.Query().Get("tag_id")
+	tag, err := strconv.Atoi(tagID)
+	if tagID == "" {
+		ProcessError(w, ErrNoTag, http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		ProcessError(w, ErrIncorrectTag, http.StatusBadRequest)
+		return
+	}
+
+	featureID := r.URL.Query().Get("feature_id")
+	feature, err := strconv.Atoi(featureID)
+	if featureID == "" {
+		ProcessError(w, ErrIncorrectFeature, http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		ProcessError(w, ErrIncorrectFeature, http.StatusBadRequest)
+		return
+	}
+
+	var limitValPointer *int32
+	limit := r.URL.Query().Get("limit")
+	if limit != "" {
+		limitVal, err := strconv.Atoi(limit)
+		if err != nil {
+			ProcessError(w, ErrIncorrectLimit, http.StatusBadRequest)
+			return
+		}
+		*limitValPointer = int32(limitVal)
+	}
+
+	var offsetValPointer *int32
+	offset := r.URL.Query().Get("offset")
+	if offset != "" {
+		offsetVal, err := strconv.Atoi(offset)
+		if err != nil {
+			ProcessError(w, ErrIncorrectOffset, http.StatusBadRequest)
+			return
+		}
+		*offsetValPointer = int32(offsetVal)
+	}
+
+	versions, err := c.Usecases.ListBannerVersions(r.Context(), usecase.BannerVersionsParams{
+		TagID:     int32(tag),
+		FeatureID: int32(feature),
+		Limit:     limitValPointer,
+		Offset:    offsetValPointer,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		ProcessError(w, err, http.StatusNotFound)
+	}
+	if err != nil {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	body, err := json.Marshal(versions)
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+		return
+	}
+	_, err = w.Write(body)
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+		return
+	}
+
 }
 
 // CreateBannerHandler handles POST request with
