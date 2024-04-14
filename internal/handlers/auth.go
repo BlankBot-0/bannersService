@@ -6,11 +6,12 @@ import (
 	"net/http"
 )
 
-func AdminAuth(next http.Handler, c *Controller) http.Handler {
+func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("admin_token")
 		if token == "" {
-			http.Error(w, "Missing token", http.StatusBadRequest)
+			ProcessError(w, ErrNoToken, http.StatusBadRequest)
+			return
 		}
 		err := c.Usecases.AdminAuth(r.Context(), token)
 		if errors.Is(err, authentification.ErrUnauthorized) {
@@ -18,7 +19,7 @@ func AdminAuth(next http.Handler, c *Controller) http.Handler {
 			return
 		}
 		if errors.Is(err, authentification.ErrInvalidToken) {
-			ProcessError(w, err, http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 		if errors.Is(err, authentification.ErrForbidden) {
@@ -33,21 +34,25 @@ func AdminAuth(next http.Handler, c *Controller) http.Handler {
 	})
 }
 
-func UserAuth(next http.Handler, c *Controller) http.Handler {
+func (c *Controller) UserAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.URL.Query().Get("user_token")
 		if token == "" {
-			http.Error(w, "Missing token", http.StatusBadRequest)
+			ProcessError(w, ErrNoToken, http.StatusBadRequest)
+			return
 		}
 		err := c.Usecases.UserAuth(r.Context(), token)
 		if errors.Is(err, authentification.ErrInvalidToken) {
 			ProcessError(w, err, http.StatusBadRequest)
+			return
 		}
 		if errors.Is(err, authentification.ErrUnauthorized) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
 		}
 		if errors.Is(err, authentification.ErrForbidden) {
 			http.Error(w, err.Error(), http.StatusForbidden)
+			return
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

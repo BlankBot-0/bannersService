@@ -111,7 +111,7 @@ func (s *AuthentificationSystem) UserToken(ctx context.Context, credentials usec
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(s.PrivateKey)
+	tokenString, err := token.SignedString([]byte(s.PrivateKey))
 	if err != nil {
 		return "", err
 	}

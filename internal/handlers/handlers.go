@@ -304,29 +304,6 @@ func (c *Controller) AdminToken(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(bodyJSON)
 }
 
-func (c *Controller) AdminAuth(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("admin_token")
-	if token == "" {
-		http.Error(w, "Missing token", http.StatusBadRequest)
-	}
-	err := c.Usecases.AdminAuth(r.Context(), token)
-	if errors.Is(err, authentification.ErrUnauthorized) {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-	if errors.Is(err, authentification.ErrInvalidToken) {
-		ProcessError(w, err, http.StatusBadRequest)
-		return
-	}
-	if errors.Is(err, authentification.ErrForbidden) {
-		http.Error(w, err.Error(), http.StatusForbidden)
-		return
-	}
-	if err != nil {
-		ProcessError(w, ErrInternal, http.StatusInternalServerError)
-		return
-	}
-}
 func (c *Controller) UserToken(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	if username == "" {
@@ -356,28 +333,6 @@ func (c *Controller) UserToken(w http.ResponseWriter, r *http.Request) {
 	body["token"] = token
 	bodyJSON, _ := json.Marshal(body)
 	_, err = w.Write(bodyJSON)
-}
-
-func (c *Controller) UserAuth(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("user_token")
-	if token == "" {
-		http.Error(w, "Missing token", http.StatusBadRequest)
-	}
-	err := c.Usecases.UserAuth(r.Context(), token)
-	if errors.Is(err, authentification.ErrInvalidToken) {
-		ProcessError(w, err, http.StatusBadRequest)
-	}
-	if errors.Is(err, authentification.ErrUnauthorized) {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-	}
-	if errors.Is(err, authentification.ErrForbidden) {
-		http.Error(w, err.Error(), http.StatusForbidden)
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 }
 
 const DefaultLimit = 100
