@@ -60,7 +60,7 @@ func (s *AuthentificationSystem) AdminToken(ctx context.Context, credentials use
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(s.PrivateKey)
+	tokenString, err := token.SignedString([]byte(s.PrivateKey))
 	if err != nil {
 		return "", err
 	}
@@ -70,7 +70,7 @@ func (s *AuthentificationSystem) AdminToken(ctx context.Context, credentials use
 func (s *AuthentificationSystem) AdminAuth(ctx context.Context, token string) error {
 	claims := &AdminClaims{}
 	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
-		return s.PrivateKey, nil
+		return []byte(s.PrivateKey), nil
 	})
 	if errors.Is(err, jwt.ErrSignatureInvalid) {
 		return ErrForbidden
@@ -120,7 +120,7 @@ func (s *AuthentificationSystem) UserToken(ctx context.Context, credentials usec
 func (s *AuthentificationSystem) UserAuth(ctx context.Context, token string) error {
 	claims := &Claims{}
 	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
-		return s.PrivateKey, nil
+		return []byte(s.PrivateKey), nil
 	})
 	if errors.Is(err, jwt.ErrSignatureInvalid) {
 		return ErrUnauthorized

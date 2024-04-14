@@ -46,12 +46,7 @@ func (c *Controller) UserBannerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	body, err := json.Marshal(banner)
-	if err != nil {
-		ProcessError(w, ErrInternal, http.StatusInternalServerError)
-		return
-	}
-	_, err = w.Write(body)
+	_, err = w.Write([]byte(banner))
 	if err != nil {
 		ProcessError(w, ErrInternal, http.StatusInternalServerError)
 	}
@@ -207,7 +202,7 @@ func (c *Controller) BannerVersionsHandler(w http.ResponseWriter, r *http.Reques
 // CreateBannerHandler handles POST request with
 // Header params: token
 func (c *Controller) CreateBannerHandler(w http.ResponseWriter, r *http.Request) {
-	var banner usecase.BannerJsonDTO
+	var banner usecase.BannerDTO
 	err := json.NewDecoder(r.Body).Decode(&banner)
 	if err != nil {
 		ProcessError(w, ErrIncorrectBannerContent, http.StatusBadRequest)
@@ -265,6 +260,7 @@ func (c *Controller) DeleteBannerHandler(w http.ResponseWriter, r *http.Request)
 		ProcessError(w, ErrInternal, http.StatusInternalServerError)
 	}
 }
+
 func (c *Controller) AdminToken(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	if username == "" {

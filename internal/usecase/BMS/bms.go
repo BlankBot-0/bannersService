@@ -55,7 +55,7 @@ func NewBMS(deps Deps) *BMS {
 	}
 }
 
-func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) error {
+func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerDTO) error {
 	tx, err := s.TxBuilder.Begin(ctx)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) er
 
 	_, err = qtx.CheckExistsBanner(ctx, banners.CheckExistsBannerParams{
 		FeatureID: banner.FeatureID,
-		TagIds:    banner.BannerWithTagsDTO.Tags,
+		TagIds:    banner.Tags,
 	})
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return ErrFeatureTagPairAlreadyExists
@@ -96,7 +96,7 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerJsonDTO) er
 
 	err = qtx.AddBannerTags(ctx, banners.AddBannerTagsParams{
 		BannerID: int32(bannerId),
-		TagIds:   banner.BannerWithTagsDTO.Tags,
+		TagIds:   banner.Tags,
 	})
 	if err != nil {
 		return err

@@ -23,6 +23,7 @@ type BannerVersionsParams struct {
 type BannerDTO struct {
 	ID        int64     `json:"banner_id"`
 	FeatureID int32     `json:"feature_id"`
+	Tags      []int32   `json:"tag_ids"`
 	Contents  string    `json:"content"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
@@ -54,7 +55,6 @@ func NewBannerVersionsDTO(rows []banners.ListBannerVersionsRow, bannerID int32) 
 
 type BannerWithTagsDTO struct {
 	BannerDTO
-	Tags []int32 `json:"tag_ids"`
 }
 
 func NewListBannersDTO(rows []banners.ListBannersRow) []BannerWithTagsDTO {
@@ -64,12 +64,12 @@ func NewListBannersDTO(rows []banners.ListBannersRow) []BannerWithTagsDTO {
 			BannerDTO: BannerDTO{
 				ID:        row.ID,
 				FeatureID: row.FeatureID,
+				Tags:      row.Tags,
 				Contents:  string(row.Contents),
 				IsActive:  row.IsActive,
 				CreatedAt: row.CreatedAt.Time,
 				UpdatedAt: row.UpdatedAt.Time,
 			},
-			Tags: row.Tags,
 		}
 	}
 	return bannersList

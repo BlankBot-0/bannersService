@@ -12,10 +12,12 @@ func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
 		token := r.Header.Get("Authorization")
 		tokenSplit := strings.Fields(token)
 
-		if len(tokenSplit) == 0 || tokenSplit[0] != "Bearer" {
+		if len(tokenSplit) < 0 || tokenSplit[0] != "Bearer" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+		token = tokenSplit[1]
+
 		if token == "" {
 			ProcessError(w, ErrNoToken, http.StatusBadRequest)
 			return
@@ -46,10 +48,13 @@ func (c *Controller) UserAuthMiddleware(next http.Handler) http.Handler {
 		token := r.Header.Get("Authorization")
 		tokenSplit := strings.Fields(token)
 
-		if len(tokenSplit) == 0 || tokenSplit[0] != "Bearer" {
+		if len(tokenSplit) < 2 || tokenSplit[0] != "Bearer" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+
+		token = tokenSplit[1]
+
 		if token == "" {
 			ProcessError(w, ErrNoToken, http.StatusBadRequest)
 			return
