@@ -21,3 +21,8 @@ type AuthentificationSystem interface {
 	AdminToken(ctx context.Context, credentials CredentialsDTO) (string, error)
 	AdminAuth(ctx context.Context, token string) error
 }
+
+type CacheSystem interface {
+	Get(ctx context.Context, key string) (string, error)
+	Set(ctx context.Context, key string, value string) error
+}

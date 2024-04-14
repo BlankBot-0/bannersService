@@ -14,7 +14,8 @@ type Config struct {
 	PrivateKey string `yaml:"private_key"`
 	PublicKey  string `yaml:"public_key"`
 	HTTPServer `yaml:"http_server"`
-	Auth       Auth `yaml:"auth"`
+	Auth       Auth  `yaml:"auth"`
+	Cache      Cache `yaml:"cache"`
 }
 
 type HTTPServer struct {
@@ -25,6 +26,10 @@ type HTTPServer struct {
 
 type Auth struct {
 	PrivateKey     string        `yaml:"private_key" env-default:""`
+	ExpirationTime time.Duration `yaml:"expiration_time"`
+}
+
+type Cache struct {
 	ExpirationTime time.Duration `yaml:"expiration_time"`
 }
 

@@ -9,10 +9,17 @@ import (
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jellydator/ttlcache/v3"
 	"log"
+	"time"
 )
 
 func main() {
+	cache := ttlcache.New[string, string](
+		ttlcache.WithTTL[string, string](30 * time.Minute),
+	)
+	cache.Set()
+
 	ctx := context.Background()
 	cfg := config.MustLoad()
 	// temporary line
