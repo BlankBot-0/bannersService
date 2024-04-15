@@ -1,6 +1,7 @@
 package test
 
 import (
+	"banners/internal/handlers"
 	"banners/internal/usecase"
 	bytes "bytes"
 	"context"
@@ -9,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -76,5 +78,22 @@ func TestAuth(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, content)
 		assert.Equal(t, dto.Contents, content)
+	}
+}
+
+func TestProcessError(t *testing.T) {
+	w := httptest.NewRecorder()
+	err := handlers.ErrIncorrectBannerContent
+	code := http.StatusBadRequest
+
+	handlers.ProcessError(w, err, code)
+	got := w.Body.String()
+
+	want := "{\"error\":\"incorrect banner content\"}"
+	if got != want {
+		t.Errorf("incorrect response body: got %q, want %q", got, want)
+	}
+	if w.Result().StatusCode != code {
+		t.Errorf("incorrect response status: got %d, want %d", w.Result().StatusCode, code)
 	}
 }
