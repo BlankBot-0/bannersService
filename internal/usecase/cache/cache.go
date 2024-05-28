@@ -22,7 +22,9 @@ func NewCacheSystem(deps Deps) *CacheSystem {
 }
 
 func (c *CacheSystem) Set(key string, value string) {
-
+	c.Deps.Cache.Set(key, value)
 }
 
-func (c *CacheSystem) Get(key string) string {}
+func (c *CacheSystem) Get(key string) string {
+	return c.Deps.Cache.Get(key)
+}

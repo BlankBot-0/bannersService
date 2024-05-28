@@ -3,14 +3,11 @@ package auth
 import (
 	"banners/internal/config"
 	"banners/internal/usecase"
-	"banners/internal/usecase/authentication"
 	"context"
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
 	"time"
 )
-
-var _ authentication.Authenticator = (*Auth)(nil)
 
 type Auth struct {
 	PrivateKey     string
