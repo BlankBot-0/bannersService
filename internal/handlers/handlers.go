@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	"banners/internal/auth"
 	"banners/internal/repository/postgres/banners"
 	"banners/internal/usecase"
 	"banners/internal/usecase/BMS"
-	"banners/internal/usecase/authentification"
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
@@ -277,15 +277,15 @@ func (c *Controller) AdminToken(w http.ResponseWriter, r *http.Request) {
 		Username: username,
 	}
 	token, err := c.Usecases.AdminToken(r.Context(), credentials)
-	if errors.Is(err, authentification.ErrUnauthorized) {
+	if errors.Is(err, auth.ErrUnauthorized) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	if errors.Is(err, authentification.ErrInvalidToken) {
+	if errors.Is(err, auth.ErrInvalidToken) {
 		ProcessError(w, err, http.StatusBadRequest)
 		return
 	}
-	if errors.Is(err, authentification.ErrForbidden) {
+	if errors.Is(err, auth.ErrForbidden) {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -316,7 +316,7 @@ func (c *Controller) UserToken(w http.ResponseWriter, r *http.Request) {
 		Username: username,
 	}
 	token, err := c.Usecases.UserToken(r.Context(), credentials)
-	if errors.Is(err, authentification.ErrUnauthorized) {
+	if errors.Is(err, auth.ErrUnauthorized) {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
