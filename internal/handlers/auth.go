@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"banners/internal/usecase/authentification"
+	"banners/internal/auth"
 	"errors"
 	"net/http"
 	"strings"
@@ -12,7 +12,7 @@ func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
 		token := r.Header.Get("Authorization")
 		tokenSplit := strings.Fields(token)
 
-		if len(tokenSplit) < 0 || tokenSplit[0] != "Bearer" {
+		if len(tokenSplit) == 0 || tokenSplit[0] != "Bearer" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -23,15 +23,15 @@ func (c *Controller) AdminAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		err := c.Usecases.AdminAuth(r.Context(), token)
-		if errors.Is(err, authentification.ErrUnauthorized) {
+		if errors.Is(err, auth.ErrUnauthorized) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		if errors.Is(err, authentification.ErrInvalidToken) {
+		if errors.Is(err, auth.ErrInvalidToken) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		if errors.Is(err, authentification.ErrForbidden) {
+		if errors.Is(err, auth.ErrForbidden) {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
@@ -54,27 +54,27 @@ func (c *Controller) UserAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		token = tokenSplit[1]
-
+		//TODO: errors from different package
 		if token == "" {
 			ProcessError(w, ErrNoToken, http.StatusBadRequest)
 			return
 		}
 		err := c.Usecases.UserAuth(r.Context(), token)
-		if errors.Is(err, authentification.ErrInvalidToken) {
+		if errors.Is(err, auth.ErrInvalidToken) {
 			ProcessError(w, err, http.StatusBadRequest)
 			return
 		}
 		if err != nil {
 			err := c.Usecases.AdminAuth(r.Context(), token)
-			if errors.Is(err, authentification.ErrUnauthorized) {
+			if errors.Is(err, auth.ErrUnauthorized) {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
-			if errors.Is(err, authentification.ErrInvalidToken) {
+			if errors.Is(err, auth.ErrInvalidToken) {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
-			if errors.Is(err, authentification.ErrForbidden) {
+			if errors.Is(err, auth.ErrForbidden) {
 				http.Error(w, err.Error(), http.StatusForbidden)
 				return
 			}
@@ -84,11 +84,11 @@ func (c *Controller) UserAuthMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		if errors.Is(err, authentification.ErrUnauthorized) {
+		if errors.Is(err, auth.ErrUnauthorized) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		if errors.Is(err, authentification.ErrForbidden) {
+		if errors.Is(err, auth.ErrForbidden) {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}

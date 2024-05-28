@@ -1,11 +1,12 @@
 package main
 
 import (
+	"banners/internal/auth"
 	"banners/internal/config"
 	"banners/internal/handlers"
 	"banners/internal/repository/postgres/banners"
 	"banners/internal/usecase/BMS"
-	"banners/internal/usecase/authentification"
+	"banners/internal/usecase/authentication"
 	"context"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,12 +34,16 @@ func main() {
 		Repository: repo,
 		TxBuilder:  dbPool,
 	})
-	auth := authentification.NewAuthentificationSystem(authentification.Deps{
-		Repo: repo,
-	}, cfg.Auth)
+
+	authenticator := auth.New(cfg.Auth)
+
+	authSystem := authentication.NewAuthenticationSystem(authentication.Deps{
+		Authenticator: authenticator,
+		Repo:          repo,
+	})
 	usecases := handlers.Usecases{
 		BannerManagementSystem: bms,
-		AuthentificationSystem: auth,
+		AuthenticationSystem:   authSystem,
 	}
 	controller := handlers.NewController(usecases)
 	server := controller.NewServer(cfg.HTTPServer)

@@ -15,7 +15,7 @@ type BannerManagementSystem interface {
 	DeleteBanner(ctx context.Context, id int32) error
 }
 
-type AuthentificationSystem interface {
+type AuthenticationSystem interface {
 	UserToken(ctx context.Context, credentials CredentialsDTO) (string, error)
 	UserAuth(ctx context.Context, token string) error
 	AdminToken(ctx context.Context, credentials CredentialsDTO) (string, error)
