@@ -298,6 +298,9 @@ func (c *Controller) AdminToken(w http.ResponseWriter, r *http.Request) {
 	body["token"] = token
 	bodyJSON, _ := json.Marshal(body)
 	_, err = w.Write(bodyJSON)
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+	}
 }
 
 func (c *Controller) UserToken(w http.ResponseWriter, r *http.Request) {
@@ -329,6 +332,9 @@ func (c *Controller) UserToken(w http.ResponseWriter, r *http.Request) {
 	body["token"] = token
 	bodyJSON, _ := json.Marshal(body)
 	_, err = w.Write(bodyJSON)
+	if err != nil {
+		ProcessError(w, ErrInternal, http.StatusInternalServerError)
+	}
 }
 
 const DefaultLimit = 100
