@@ -2,7 +2,6 @@ package cache
 
 import (
 	"banners/internal/logger"
-	"banners/internal/models"
 	"context"
 	"errors"
 	"github.com/redis/go-redis/v9"
@@ -10,7 +9,7 @@ import (
 )
 
 type Deps struct {
-	redisClient *redis.Client
+	RedisClient *redis.Client
 }
 
 type Redis struct {
@@ -25,12 +24,12 @@ func New(deps Deps, expiration time.Duration) *Redis {
 	}
 }
 
-func (c *Redis) Set(ctx context.Context, key string, value models.BannerContent) error {
-	return c.redisClient.Set(ctx, key, value, c.expirationTime).Err()
+func (c *Redis) Set(ctx context.Context, key string, value string) error {
+	return c.RedisClient.Set(ctx, key, value, c.expirationTime).Err()
 }
 
 func (c *Redis) Get(ctx context.Context, key string) (string, error) {
-	bannerRaw, err := c.redisClient.Get(ctx, key).Result()
+	bannerRaw, err := c.RedisClient.Get(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			logger.Errorf("redis error: banner id %s does not exist", key)
@@ -46,7 +45,7 @@ func (c *Redis) Get(ctx context.Context, key string) (string, error) {
 }
 
 func (c *Redis) Delete(ctx context.Context, key string) error {
-	err := c.redisClient.Del(ctx, key).Err()
+	err := c.RedisClient.Del(ctx, key).Err()
 	if err != nil {
 		logger.Errorf("redis delete error: %v", err)
 		return err

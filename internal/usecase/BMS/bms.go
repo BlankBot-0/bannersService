@@ -45,7 +45,7 @@ type (
 type Deps struct {
 	Repository BMSRepository
 	TxBuilder  db
-	cache      usecase.Cacher
+	Cache      usecase.Cacher
 }
 
 type BMS struct {
@@ -112,7 +112,7 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerDTO) error 
 
 func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (models.BannerContent, error) {
 	bannerRedisID := fmt.Sprintf("user_banner_%d_%d", tagID, featureID)
-	bannerMarshalled, err := s.cache.Get(ctx, bannerRedisID)
+	bannerMarshalled, err := s.Cache.Get(ctx, bannerRedisID)
 	if err == nil {
 		return models.BannerContent(bannerMarshalled), err
 	}
@@ -145,7 +145,7 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 		return "", err
 	}
 
-	err = s.cache.Set(ctx, fmt.Sprintf("user_banner_%d_%d", tagID, featureID), string(banner.Contents))
+	err = s.Cache.Set(ctx, fmt.Sprintf("user_banner_%d_%d", tagID, featureID), string(banner.Contents))
 	if err != nil {
 		logger.Warnf("redis set error: %v", err)
 	}

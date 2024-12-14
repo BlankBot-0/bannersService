@@ -31,6 +31,7 @@ type Auth struct {
 
 type Cache struct {
 	ExpirationTime time.Duration `yaml:"expiration_time"`
+	RedisAddr      string        `yaml:"redis_addr" env-default:"redis:6379"`
 }
 
 func MustLoad() *Config {
