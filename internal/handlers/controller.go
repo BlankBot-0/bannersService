@@ -5,13 +5,12 @@ import "banners/internal/usecase"
 type Usecases struct {
 	usecase.BannerManagementSystem // BMS interface
 	usecase.AuthenticationSystem
-	usecase.CacheSystem
+	usecase.Cacher
 }
 
 // Controller - is controller/delivery layer
 type Controller struct {
 	Usecases
-	/* ... */
 }
 
 // NewController - returns Controller

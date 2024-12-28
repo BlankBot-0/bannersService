@@ -1,12 +1,14 @@
 package BMS
 
 import (
+	"banners/internal/logger"
 	"banners/internal/models"
 	"banners/internal/repository/postgres/banners"
 	"banners/internal/usecase"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -43,6 +45,7 @@ type (
 type Deps struct {
 	Repository BMSRepository
 	TxBuilder  db
+	Cache      usecase.Cacher
 }
 
 type BMS struct {
@@ -108,6 +111,12 @@ func (s *BMS) CreateBanner(ctx context.Context, banner usecase.BannerDTO) error 
 }
 
 func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (models.BannerContent, error) {
+	bannerRedisID := fmt.Sprintf("user_banner_%d_%d", tagID, featureID)
+	bannerMarshalled, err := s.Cache.Get(ctx, bannerRedisID)
+	if err == nil {
+		return models.BannerContent(bannerMarshalled), err
+	}
+
 	tx, err := s.TxBuilder.Begin(ctx)
 	if err != nil {
 		return "", err
@@ -134,6 +143,11 @@ func (s *BMS) UserBanner(ctx context.Context, tagID int32, featureID int32) (mod
 	err = tx.Commit(ctx)
 	if err != nil {
 		return "", err
+	}
+
+	err = s.Cache.Set(ctx, fmt.Sprintf("user_banner_%d_%d", tagID, featureID), string(banner.Contents))
+	if err != nil {
+		logger.Warnf("redis set error: %v", err)
 	}
 
 	return models.BannerContent(banner.Contents), nil

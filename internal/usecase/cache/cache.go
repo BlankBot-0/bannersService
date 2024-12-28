@@ -1,30 +1,56 @@
 package cache
 
-type (
-	Cache interface {
-		Get(key string) string
-		Set(key string, value string)
-	}
+import (
+	"banners/internal/logger"
+	"context"
+	"errors"
+	"github.com/redis/go-redis/v9"
+	"time"
 )
 
 type Deps struct {
-	Cache Cache
+	RedisClient *redis.Client
 }
 
-type CacheSystem struct {
+type Redis struct {
 	Deps
+	expirationTime time.Duration
 }
 
-func NewCacheSystem(deps Deps) *CacheSystem {
-	return &CacheSystem{
-		Deps: deps,
+func New(deps Deps, expiration time.Duration) *Redis {
+	return &Redis{
+		Deps:           deps,
+		expirationTime: expiration,
 	}
 }
 
-func (c *CacheSystem) Set(key string, value string) {
-	c.Deps.Cache.Set(key, value)
+func (c *Redis) Set(ctx context.Context, key string, value string) error {
+	return c.RedisClient.Set(ctx, key, value, c.expirationTime).Err()
 }
 
-func (c *CacheSystem) Get(key string) string {
-	return c.Deps.Cache.Get(key)
+func (c *Redis) Get(ctx context.Context, key string) (string, error) {
+	bannerRaw, err := c.RedisClient.Get(ctx, key).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			logger.Errorf("redis error: banner id %s does not exist", key)
+			return "", err
+		}
+		logger.Errorf("redis get error: %v", err)
+		return "", err
+	}
+	if bannerRaw == "" {
+		logger.Warnf("reddis: banner with id %s is empty", key)
+	}
+	return bannerRaw, nil
+}
+
+func (c *Redis) Delete(ctx context.Context, key string) error {
+	err := c.RedisClient.Del(ctx, key).Err()
+	if err != nil {
+		logger.Errorf("redis delete error: %v", err)
+		return err
+	}
+
+	logger.Infof("Banner with id %s was deleted from cache", key)
+	return nil
 }
